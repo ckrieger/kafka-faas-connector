@@ -1,0 +1,52 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: msg-function-router
+  namespace: mico-workspace
+data:
+  spring.profiles.active: prod
+  application.properties: |-
+    kafka.bootstrapServers=kafka.openfaas:9092
+    openfaas.gateway=gateway.openfaas:8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: msg-function-router
+  namespace: mico-workspace
+  labels:
+    run: msg-function-router
+spec:
+  clusterIP: None
+  selector:
+    run: msg-function-router
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: msg-function-router
+  namespace: mico-workspace
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: msg-function-router
+  template:
+    metadata:
+      namespace: mico-workspace
+      labels:
+        run: msg-function-router
+    spec:
+      containers:
+        - name: msg-function-router
+          image: ustmico/msg-function-router
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              valueFrom:
+                configMapKeyRef:
+                  name: msg-function-router
+                  key: spring.profiles.active
