@@ -9,9 +9,9 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>io.github.ust-mico</groupId>
-	<artifactId>msg-function-router</artifactId>
+	<artifactId>kafka-faas-connector</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>msg-function-router</name>
+	<name>kafka-faas-connector</name>
 	<description>Router that receives messages from Kafka and routes them to an appropriate function</description>
 
 	<properties>
@@ -32,6 +32,10 @@
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
 			<optional>true</optional>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

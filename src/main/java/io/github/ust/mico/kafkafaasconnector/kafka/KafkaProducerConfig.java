@@ -1,4 +1,4 @@
-package io.github.ust.mico.msgfunctionrouter.kafka;
+package io.github.ust.mico.kafkafaasconnector.kafka;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -17,8 +17,8 @@ import java.util.Map;
 public class KafkaProducerConfig {
 
 
-    @Value(value = "${kafka.bootstrapServers}")
-    private String bootstrapAddress;
+    @Value(value = "${kafka.bootstrap-servers}")
+    private String bootstrapServers;
 
     @Bean
     public ProducerFactory<String, CloudEventExtensionImpl<JsonNode>> producerFactory() {
@@ -36,7 +36,7 @@ public class KafkaProducerConfig {
         Map<String, Object> configProps = new HashMap<>();
         configProps.put(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
-                bootstrapAddress);
+                bootstrapServers);
         configProps.put(
                 ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
                 StringSerializer.class);
@@ -53,6 +53,6 @@ public class KafkaProducerConfig {
 
     @Bean
     public KafkaTemplate<Object, Object> invalidMessageTemplate() {
-        return new KafkaTemplate<Object, Object>(invalidMessageProducerFactory());
+        return new KafkaTemplate<>(invalidMessageProducerFactory());
     }
 }

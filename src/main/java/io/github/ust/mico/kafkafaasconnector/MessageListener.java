@@ -1,12 +1,13 @@
-package io.github.ust.mico.msgfunctionrouter;
+package io.github.ust.mico.kafkafaasconnector;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.github.ust.mico.msgfunctionrouter.kafka.CloudEventExtensionImpl;
+import io.github.ust.mico.kafkafaasconnector.configuration.KafkaConfig;
+import io.github.ust.mico.kafkafaasconnector.configuration.OpenFaaSConfig;
+import io.github.ust.mico.kafkafaasconnector.kafka.CloudEventExtensionImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
@@ -22,18 +23,20 @@ import java.time.ZonedDateTime;
 public class MessageListener {
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
+
     @Autowired
     private RestTemplate restTemplate;
+
     @Autowired
     private KafkaTemplate<String, CloudEventExtensionImpl<JsonNode>> kafkaTemplate;
-    @Value(value = "${kafka.outputTopic}")
-    private String outputTopic;
-    @Value(value = "${openfaas.gateway}")
-    private String openFaasGateway;
-    @Value(value = "${functions.dummy}")
-    private String dummyFunction;
 
-    @KafkaListener(topics = "${kafka.inputTopic}")
+    @Autowired
+    private KafkaConfig kafkaConfig;
+
+    @Autowired
+    private OpenFaaSConfig openFaaSConfig;
+
+    @KafkaListener(topics = "${kafka.input-topic}")
     public void receive(CloudEventExtensionImpl<JsonNode> cloudEvent) {
         log.info("Received CloudEvent message: {}", cloudEvent);
         if (!cloudEvent.getData().isPresent()) {
@@ -42,12 +45,12 @@ public class MessageListener {
 
         URL functionUrl;
         try {
-            URL gatewayUrl = new URL(openFaasGateway);
+            URL gatewayUrl = new URL(openFaaSConfig.getGateway());
             functionUrl = new URL(gatewayUrl.getProtocol(), gatewayUrl.getHost(), gatewayUrl.getPort(),
-                    gatewayUrl.getFile() + "/function/" + dummyFunction, null);
+                    gatewayUrl.getFile() + "/function/" + openFaaSConfig.getFunctionName(), null);
         } catch (MalformedURLException e) {
             log.error("Invalid URL to OpenFaaS gateway ({}) or function name ({}). Caused by: {}",
-                    openFaasGateway, dummyFunction, e.getMessage());
+                    openFaaSConfig.getGateway(), openFaaSConfig.getFunctionName(), e.getMessage());
             return;
         }
         String response = null;
@@ -74,7 +77,7 @@ public class MessageListener {
         CloudEventExtensionImpl<JsonNode> cloudEventPart = new CloudEventExtensionImpl<>(cloudEvent.getType(), cloudEvent.getSpecVersion(),
                 cloudEvent.getSource(), cloudEvent.getId(), cloudEvent.getTime().orElse(ZonedDateTime.now()), cloudEvent.getSchemaURL().orElse(null),
                 cloudEvent.getContentType().orElse("application/json"), jsonPart, null);
-        log.debug("Build CloudEvent:" + cloudEventPart.toString());
-        kafkaTemplate.send(outputTopic, cloudEventPart);
+        log.debug("Send message to topic '{}': {}", kafkaConfig.getOutputTopic(), cloudEventPart.toString());
+        kafkaTemplate.send(kafkaConfig.getOutputTopic(), cloudEventPart);
     }
 }

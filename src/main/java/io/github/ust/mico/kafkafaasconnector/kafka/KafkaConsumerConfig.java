@@ -1,6 +1,6 @@
-package io.github.ust.mico.msgfunctionrouter.kafka;
+package io.github.ust.mico.kafkafaasconnector.kafka;
 
-import io.github.ust.mico.msgfunctionrouter.MessageListener;
+import io.github.ust.mico.kafkafaasconnector.MessageListener;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -26,7 +26,7 @@ import java.util.Map;
 @Slf4j
 public class KafkaConsumerConfig {
 
-    @Value("${kafka.bootstrapServers}")
+    @Value("${kafka.bootstrap-servers}")
     private String bootstrapServers;
 
     @Autowired

@@ -1,4 +1,4 @@
-package io.github.ust.mico.msgfunctionrouter.kafka;
+package io.github.ust.mico.kafkafaasconnector.kafka;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.cloudevents.json.Json;

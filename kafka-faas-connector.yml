@@ -1,0 +1,67 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-faas-connector
+  namespace: mico-workspace
+data:
+  spring.profiles.active: prod
+  kafka.bootstrap-servers: kafka.openfaas:9092
+  openfaas.gateway: http://gateway.openfaas:8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-faas-connector
+  namespace: mico-workspace
+  labels:
+    run: kafka-faas-connector
+spec:
+  ports:
+    - port: 8080
+      targetPort: 8080
+  selector:
+    run: kafka-faas-connector
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-faas-connector
+  namespace: mico-workspace
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: kafka-faas-connector
+  template:
+    metadata:
+      namespace: mico-workspace
+      labels:
+        run: kafka-faas-connector
+    spec:
+      containers:
+        - name: kafka-faas-connector
+          image: ustmico/kafka-faas-connector
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              valueFrom:
+                configMapKeyRef:
+                  name: kafka-faas-connector
+                  key: spring.profiles.active
+            - name: KAFKA_BOOTSTRAPSERVERS
+              valueFrom:
+                configMapKeyRef:
+                  name: kafka-faas-connector
+                  key: kafka.bootstrap-servers
+            - name: OPENFAAS_GATEWAY
+              valueFrom:
+                configMapKeyRef:
+                  name: kafka-faas-connector
+                  key: openfaas.gateway

@@ -1,6 +1,6 @@
-# Message Function Router
+# Kafka FaaS Connector
 
-The *Message Function Router* is used by [MICO](https://github.com/UST-MICO/mico) to route message in the [CloudEvents](https://github.com/cloudevents/spec) format to the relevant functions ([OpenFaaS](https://github.com/openfaas/faas)).
+The *Kafka FaaS Connector* is used by [MICO](https://github.com/UST-MICO/mico) to route messages from Kafka in the [CloudEvents](https://github.com/cloudevents/spec) format to an [OpenFaaS](https://github.com/openfaas/faas) function.
 
 ## Requirements
 
@@ -19,24 +19,30 @@ kubectl port-forward svc/zookeeper -n openfaas 2181
 
 ## Usage
 
-Build the Docker image:
+Build and push the Docker image:
 ```bash
-docker build -t ustmico/msg-function-router:latest
+docker build -t ustmico/kafka-faas-connector . && docker push ustmico/kafka-faas-connector
 ```
 
 docker-compose:
 ```bash
-docker-compose up --build msg-function-router
+docker-compose up --build kafka-faas-connector
 ```
 
-## Testing
+## Misc
 
-Kafka Producer:
+Actuator get configuration properties:
+```bash
+kubectl port-forward svc/kafka-faas-connector -n mico-workspace 8080
+curl localhost:8080/actuator/configprops | jq . > configmaps.json
+```
+
+Kafka Producer (local):
 ```bash
 ./kafka-console-producer.sh --broker-list localhost:9092 --topic transform-request
 ```
 
-Kafka Consumer:
+Kafka Consumer (local):
 ```bash
 ./kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic transform-result --from-beginning
 ```
@@ -47,7 +53,18 @@ Sample message:
 ```
 
 curl the dummy function:
-``bash
+```bash
 curl http://127.0.0.1:8080/function/dummy -d '{"specversion":"0.2","type":"io.github.ust.mico.result","source":"/router","id":"A234-1234-1234","time":"2019-05-08T17:31:00Z","contentType":"application/json","data":"test"}
 '
 ```
+
+Get logs:
+```bash
+kubectl -n $NAMESPACE logs -f $(kubectl get pods -n $NAMESPACE --selector=run=kafka-faas-connector --output=jsonpath={.items..metadata.name})
+```
+
+Delete Kuberentes pod:
+```bash
+kubectl -n $NAMESPACE delete pod $(kubectl get pods -n $NAMESPACE --selector=run=kafka-faas-connector --output=jsonpath={.items..metadata.name})
+```
+

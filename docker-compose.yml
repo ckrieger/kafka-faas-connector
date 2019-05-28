@@ -18,9 +18,9 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-  msg-function-router:
+  kafka-faas-connector:
     build: .
-    container_name: msg-function-router
+    container_name: kafka-faas-connector
     depends_on:
       - kafka
     environment:
