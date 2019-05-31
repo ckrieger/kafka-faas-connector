@@ -11,7 +11,8 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 public class ErrorReportMessage {
 
-    String message;
+    String errorMessage;
+    String originalMessageId;
     String kafkaInputTopic;
     String kafkaOutputTopic;
     String OpenfaasGateway;
