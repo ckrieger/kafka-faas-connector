@@ -12,10 +12,10 @@ import lombok.experimental.Accessors;
 public class ErrorReportMessage {
 
     String errorMessage;
-    String originalMessageId;
-    String kafkaInputTopic;
-    String kafkaOutputTopic;
-    String OpenfaasGateway;
-    String OpenfaasFunctionName;
-    String kafkaFaasConnectorName;
+    String originalMessageId; // Replace with createdfrom in the CloudEvent envelope
+    String inputTopic;
+    String outputTopic;
+    String faasGateway;
+    String faasFunctionName;
+    String reportingComponentName;
 }

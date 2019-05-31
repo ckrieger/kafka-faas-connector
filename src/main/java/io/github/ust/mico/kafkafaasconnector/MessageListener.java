@@ -114,11 +114,11 @@ public class MessageListener {
         return new ErrorReportMessage()
                 .setErrorMessage(message)
                 .setOriginalMessageId(originalMessageId)
-                .setKafkaInputTopic(kafkaConfig.getInputTopic())
-                .setKafkaOutputTopic(kafkaConfig.getOutputTopic())
-                .setOpenfaasFunctionName(openFaaSConfig.getFunctionName())
-                .setOpenfaasGateway(openFaaSConfig.getGateway())
-                .setKafkaFaasConnectorName("TODO"); //TODO set this via a env variable and use it here
+                .setInputTopic(kafkaConfig.getInputTopic())
+                .setOutputTopic(kafkaConfig.getOutputTopic())
+                .setFaasFunctionName(openFaaSConfig.getFunctionName())
+                .setFaasGateway(openFaaSConfig.getGateway())
+                .setReportingComponentName("TODO"); //TODO set this via a env variable and use it here
     }
 
     private void sendMessagePart(CloudEventExtensionImpl<JsonNode> cloudEvent, JsonNode jsonPart) {
