@@ -88,6 +88,14 @@ public class MessageListener {
     }
 
     private void sendErrorMessageToInvalidMessageTopic(String errorMessage, MicoCloudEventImpl<JsonNode> cloudEvent) {
+        sendErrorMessage(errorMessage,cloudEvent,kafkaConfig.getInvalidMessageTopic());
+    }
+
+    private void sendErrorMessageToDeadLetterTopic(String errorMessage, MicoCloudEventImpl<JsonNode> cloudEvent) {
+        sendErrorMessage(errorMessage,cloudEvent,kafkaConfig.getDeadLetterTopic());
+    }
+
+    private void sendErrorMessage(String errorMessage, MicoCloudEventImpl<JsonNode> cloudEvent, String topic) {
         log.error(errorMessage);
         MicoCloudEventImpl<JsonNode> cloudEventErrorReportMessage = getCloudEventErrorReportMessage(errorMessage,cloudEvent.getId());
         kafkaTemplate.send(INVALID_MESSAGE_TOPIC,cloudEventErrorReportMessage);

@@ -33,4 +33,16 @@ public class KafkaConfig {
      */
     @NotBlank
     private String outputTopic;
+
+    /**
+     * Used to report message processing errors
+     */
+    @NotBlank
+    private String invalidMessageTopic;
+
+    /**
+     * Used to report routing errors
+     */
+    @NotBlank
+    private String deadLetterTopic;
 }
