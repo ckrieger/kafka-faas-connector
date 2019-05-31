@@ -1,6 +1,7 @@
 package io.github.ust.mico.kafkafaasconnector.kafka;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.cloudevents.CloudEvent;
 import io.cloudevents.Extension;
@@ -35,7 +36,7 @@ public class MicoCloudEventImpl<T> implements CloudEvent<T> {
     private URI schemaURL;
     private String contentType;
     private T data;
-    private List<Extension> extensions;
+    private List<Extension> extensions = new LinkedList<>();
 
     private String correlationId;
     private String createFrom;
@@ -50,24 +51,53 @@ public class MicoCloudEventImpl<T> implements CloudEvent<T> {
     private String returnTopic;
     private String dataRef;
 
+    public MicoCloudEventImpl<T> setRandomId() {
+        id = UUID.randomUUID().toString();
+        return this;
+    }
 
-    public Optional<ZonedDateTime> getTime(){
+
+    public MicoCloudEventImpl<T> setBaseCloudEvent(CloudEvent<T> cloudEvent) {
+        id = cloudEvent.getId();
+        specVersion = cloudEvent.getSpecVersion();
+        source = cloudEvent.getSource();
+        type = cloudEvent.getType();
+        data = cloudEvent.getData().orElse(null);
+        contentType = cloudEvent.getContentType().orElse(null);
+        schemaURL = cloudEvent.getSchemaURL().orElse(null);
+        extensions = cloudEvent.getExtensions().orElse(null);
+        time = cloudEvent.getTime().orElse(null);
+        return this;
+    }
+
+    @JsonAnySetter
+    public void setUnknownExtensions(String key, String value) {
+        UnknownExtension unknownExtension = new UnknownExtension(key,value);
+        extensions.add(unknownExtension);
+    }
+
+    public MicoCloudEventImpl<T> addExtension(Extension extension){
+        extensions.add(extension);
+        return this;
+    }
+
+    public Optional<ZonedDateTime> getTime() {
         return Optional.ofNullable(time);
     }
 
-    public Optional<URI> getSchemaURL(){
+    public Optional<URI> getSchemaURL() {
         return Optional.ofNullable(schemaURL);
     }
 
-    public Optional<String> getContentType(){
+    public Optional<String> getContentType() {
         return Optional.ofNullable(contentType);
     }
 
-    public Optional<T> getData(){
+    public Optional<T> getData() {
         return Optional.ofNullable(data);
     }
 
-    public Optional<List<Extension>> getExtensions(){
+    public Optional<List<Extension>> getExtensions() {
         return Optional.ofNullable(extensions);
     }
 

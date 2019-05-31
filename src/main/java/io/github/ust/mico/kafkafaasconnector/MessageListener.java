@@ -98,7 +98,7 @@ public class MessageListener {
         ErrorReportMessage errorReportMessage = getErrorReportMessage(errorMessage, originalMessageId);
         return new MicoCloudEventImpl<JsonNode>()
                 .setContentType(CONTENT_TYPE)
-                .setId(UUID.randomUUID().toString())
+                .setRandomId()
                 .setTime(ZonedDateTime.now())
                 .setData(objectMapper.valueToTree(errorReportMessage))
                 .setType(ErrorReportMessage.class.getName());
