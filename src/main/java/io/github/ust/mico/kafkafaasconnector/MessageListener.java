@@ -5,15 +5,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.ust.mico.kafkafaasconnector.configuration.KafkaConfig;
 import io.github.ust.mico.kafkafaasconnector.configuration.OpenFaaSConfig;
-import io.github.ust.mico.kafkafaasconnector.kafka.CloudEventExtensionImpl;
+import io.github.ust.mico.kafkafaasconnector.kafka.MicoCloudEventImpl;
 import io.github.ust.mico.kafkafaasconnector.kafka.ErrorReportMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
@@ -35,7 +33,7 @@ public class MessageListener {
     private RestTemplate restTemplate;
 
     @Autowired
-    private KafkaTemplate<String, CloudEventExtensionImpl<JsonNode>> kafkaTemplate;
+    private KafkaTemplate<String, MicoCloudEventImpl<JsonNode>> kafkaTemplate;
 
     @Autowired
     private KafkaConfig kafkaConfig;
@@ -44,7 +42,7 @@ public class MessageListener {
     private OpenFaaSConfig openFaaSConfig;
 
     @KafkaListener(topics = "${kafka.input-topic}")
-    public void receive(CloudEventExtensionImpl<JsonNode> cloudEvent) {
+    public void receive(MicoCloudEventImpl<JsonNode> cloudEvent) {
         log.info("Received CloudEvent message: {}", cloudEvent);
         if (!cloudEvent.getData().isPresent()) {
             log.warn("Received message does not include any data!");
@@ -75,7 +73,6 @@ public class MessageListener {
             }else{
                 sendErrorMessageToInvalidMessageTopic("Return of FaaS function is not an array:" + response,cloudEvent);
             }
-            sendMessagePart(cloudEvent, payload);
             //Maybe move the kafka invalid message topic handling to a log appender
         } catch (JsonProcessingException e) {
             log.error("Failed to serialize CloudEvent '{}'.", cloudEvent);
@@ -90,18 +87,21 @@ public class MessageListener {
         }
     }
 
-    private void sendErrorMessageToInvalidMessageTopic(String errorMessage, CloudEventExtensionImpl<JsonNode> cloudEvent) {
+    private void sendErrorMessageToInvalidMessageTopic(String errorMessage, MicoCloudEventImpl<JsonNode> cloudEvent) {
         log.error(errorMessage);
-        CloudEventExtensionImpl<JsonNode> cloudEventErrorReportMessage = getCloudEventErrorReportMessage(errorMessage,cloudEvent.getId());
+        MicoCloudEventImpl<JsonNode> cloudEventErrorReportMessage = getCloudEventErrorReportMessage(errorMessage,cloudEvent.getId());
         kafkaTemplate.send(INVALID_MESSAGE_TOPIC,cloudEventErrorReportMessage);
     }
 
 
-    private CloudEventExtensionImpl<JsonNode> getCloudEventErrorReportMessage(String errorMessage, String originalMessageId) {
+    private MicoCloudEventImpl<JsonNode> getCloudEventErrorReportMessage(String errorMessage, String originalMessageId) {
         ErrorReportMessage errorReportMessage = getErrorReportMessage(errorMessage, originalMessageId);
-       return new CloudEventExtensionImpl<JsonNode>(ErrorReportMessage.class.getName(), "0.2",
-                null, UUID.randomUUID().toString(), ZonedDateTime.now(), null,
-               CONTENT_TYPE, objectMapper.valueToTree(errorReportMessage), null);
+        return new MicoCloudEventImpl<JsonNode>()
+                .setContentType(CONTENT_TYPE)
+                .setId(UUID.randomUUID().toString())
+                .setTime(ZonedDateTime.now())
+                .setData(objectMapper.valueToTree(errorReportMessage))
+                .setType(ErrorReportMessage.class.getName());
     }
 
     /**
@@ -119,15 +119,5 @@ public class MessageListener {
                 .setFaasFunctionName(openFaaSConfig.getFunctionName())
                 .setFaasGateway(openFaaSConfig.getGateway())
                 .setReportingComponentName("TODO"); //TODO set this via a env variable and use it here
-    }
-
-    private void sendMessagePart(CloudEventExtensionImpl<JsonNode> cloudEvent, JsonNode jsonPart) {
-        log.debug("Building message with content: {}", jsonPart.toString());
-        //TODO add a better solution when https://github.com/cloudevents/sdk-java/issues/31 is fixed
-        CloudEventExtensionImpl<JsonNode> cloudEventPart = new CloudEventExtensionImpl<>(cloudEvent.getType(), cloudEvent.getSpecVersion(),
-                cloudEvent.getSource(), cloudEvent.getId(), cloudEvent.getTime().orElse(ZonedDateTime.now()), cloudEvent.getSchemaURL().orElse(null),
-                cloudEvent.getContentType().orElse("application/json"), jsonPart, null);
-        log.debug("Send message to topic '{}': {}", kafkaConfig.getOutputTopic(), cloudEventPart.toString());
-        kafkaTemplate.send(kafkaConfig.getOutputTopic(), cloudEventPart);
     }
 }

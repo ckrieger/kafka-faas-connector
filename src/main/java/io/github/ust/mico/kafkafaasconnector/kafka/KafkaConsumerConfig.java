@@ -53,13 +53,13 @@ public class KafkaConsumerConfig {
     }
 
     @Bean
-    public ConsumerFactory<String, CloudEventExtensionImpl> consumerFactory() {
+    public ConsumerFactory<String, MicoCloudEventImpl> consumerFactory() {
         return new DefaultKafkaConsumerFactory<>(consumerConfigs());
     }
 
     @Bean
-    public KafkaListenerContainerFactory<ConcurrentMessageListenerContainer<String, CloudEventExtensionImpl>> kafkaListenerContainerFactory() {
-        ConcurrentKafkaListenerContainerFactory<String, CloudEventExtensionImpl> factory =
+    public KafkaListenerContainerFactory<ConcurrentMessageListenerContainer<String, MicoCloudEventImpl>> kafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, MicoCloudEventImpl> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory());
         factory.setErrorHandler(new SeekToCurrentErrorHandler(1));

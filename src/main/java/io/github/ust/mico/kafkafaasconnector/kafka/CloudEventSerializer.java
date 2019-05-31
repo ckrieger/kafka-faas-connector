@@ -7,14 +7,14 @@ import org.apache.kafka.common.serialization.Serializer;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
-public class CloudEventSerializer implements Serializer<CloudEventExtensionImpl<JsonNode>> {
+public class CloudEventSerializer implements Serializer<MicoCloudEventImpl<JsonNode>> {
     @Override
     public void configure(Map<String, ?> configs, boolean isKey) {
 
     }
 
     @Override
-    public byte[] serialize(String topic, CloudEventExtensionImpl<JsonNode> data) {
+    public byte[] serialize(String topic, MicoCloudEventImpl<JsonNode> data) {
         if (data == null)
             return null;
         else {

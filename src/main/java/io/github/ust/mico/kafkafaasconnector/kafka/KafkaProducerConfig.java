@@ -21,7 +21,7 @@ public class KafkaProducerConfig {
     private String bootstrapServers;
 
     @Bean
-    public ProducerFactory<String, CloudEventExtensionImpl<JsonNode>> producerFactory() {
+    public ProducerFactory<String, MicoCloudEventImpl<JsonNode>> producerFactory() {
         Map<String, Object> configProps = putConfig();
         return new DefaultKafkaProducerFactory<>(configProps);
     }
@@ -47,7 +47,7 @@ public class KafkaProducerConfig {
     }
 
     @Bean
-    public KafkaTemplate<String, CloudEventExtensionImpl<JsonNode>> kafkaTemplate() {
+    public KafkaTemplate<String, MicoCloudEventImpl<JsonNode>> kafkaTemplate() {
         return new KafkaTemplate<>(producerFactory());
     }
 

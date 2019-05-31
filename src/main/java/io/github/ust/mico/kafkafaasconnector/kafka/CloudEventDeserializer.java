@@ -11,21 +11,21 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 @Slf4j
-public class CloudEventDeserializer implements Deserializer<CloudEventExtensionImpl<JsonNode>> {
+public class CloudEventDeserializer implements Deserializer<MicoCloudEventImpl<JsonNode>> {
     @Override
     public void configure(Map<String, ?> configs, boolean isKey) {
 
     }
 
     @Override
-    public CloudEventExtensionImpl<JsonNode> deserialize(String topic, byte[] data) {
+    public MicoCloudEventImpl<JsonNode> deserialize(String topic, byte[] data) {
         if (data == null) {
             return null;
         }
         try {
             String message = new String(data, StandardCharsets.UTF_8);
             log.info("Trying to parse the message:" + message);
-            return Json.decodeValue(message, new TypeReference<CloudEventExtensionImpl<JsonNode>>() {
+            return Json.decodeValue(message, new TypeReference<MicoCloudEventImpl<JsonNode>>() {
             });
         } catch (IllegalStateException e) {
             throw new SerializationException("Could not create an CloudEvent message", e);
