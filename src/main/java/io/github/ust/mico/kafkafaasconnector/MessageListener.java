@@ -2,7 +2,10 @@ package io.github.ust.mico.kafkafaasconnector;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import io.cloudevents.json.Json;
 import io.github.ust.mico.kafkafaasconnector.configuration.KafkaConfig;
 import io.github.ust.mico.kafkafaasconnector.configuration.OpenFaaSConfig;
 import io.github.ust.mico.kafkafaasconnector.kafka.MicoCloudEventImpl;
@@ -15,11 +18,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
-import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.ZonedDateTime;
-import java.util.UUID;
+import java.util.ArrayList;
 
 @Slf4j
 @Component
@@ -27,7 +29,6 @@ public class MessageListener {
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
     protected static final String CONTENT_TYPE = "application/json";
-    protected static final String INVALID_MESSAGE_TOPIC = "InvalidMessage";
 
     @Autowired
     private RestTemplate restTemplate;
@@ -43,48 +44,79 @@ public class MessageListener {
 
     @KafkaListener(topics = "${kafka.input-topic}")
     public void receive(MicoCloudEventImpl<JsonNode> cloudEvent) {
-        log.info("Received CloudEvent message: {}", cloudEvent);
+        log.debug("Received CloudEvent message: {}", cloudEvent);
         if (!cloudEvent.getData().isPresent()) {
-            log.warn("Received message does not include any data!");
+            // data is entirely optional
+            log.debug("Received message does not include any data!");
         }
+        if (this.openFaaSConfig.isSkipFunctionCall()) {
+            // when skipping the openFaaS function just pass on the original cloudEvent
+            this.sendCloudEvent(cloudEvent);
+        } else {
+            String functionResult = callFaasFunction(cloudEvent);
+            ArrayList<MicoCloudEventImpl<JsonNode>> events = parseFunctionResult(functionResult, cloudEvent);
+            events.forEach(this::sendCloudEvent);
+        }
+    }
 
-        URL functionUrl;
+    public MicoCloudEventImpl<JsonNode> updateRouteHistoryWithFunctionCall(MicoCloudEventImpl<JsonNode> cloudEvent, String functionId) {
+        return this.updateRouteHistory(cloudEvent, functionId, "topic");
+    }
+
+    public MicoCloudEventImpl<JsonNode> updateRouteHistoryWithTopic(MicoCloudEventImpl<JsonNode> cloudEvent, String topic) {
+        return this.updateRouteHistory(cloudEvent, topic, "topic");
+    }
+
+    public MicoCloudEventImpl<JsonNode> updateRouteHistory(MicoCloudEventImpl<JsonNode> cloudEvent, String step, String type) {
+        // TODO update route history here
+        return cloudEvent;
+    }
+
+    public String callFaasFunction(MicoCloudEventImpl<JsonNode> cloudEvent) {
         try {
-            URL gatewayUrl = new URL(openFaaSConfig.getGateway());
-            functionUrl = new URL(gatewayUrl.getProtocol(), gatewayUrl.getHost(), gatewayUrl.getPort(),
-                    gatewayUrl.getFile() + "/function/" + openFaaSConfig.getFunctionName(), null);
-        } catch (MalformedURLException e) {
-            log.error("Invalid URL to OpenFaaS gateway ({}) or function name ({}). Caused by: {}",
-                    openFaaSConfig.getGateway(), openFaaSConfig.getFunctionName(), e.getMessage());
-            return;
-        }
-        String response = null;
-        try {
-            log.info("Start request to function '{}'", functionUrl.toString());
-            String cloudEventSerialized = objectMapper.writeValueAsString(cloudEvent);
+            URL functionUrl = openFaaSConfig.getFunctionUrl();
+            log.debug("Start request to function '{}'", functionUrl.toString());
+            String cloudEventSerialized = objectMapper.writeValueAsString(this.updateRouteHistoryWithFunctionCall(cloudEvent, openFaaSConfig.getFunctionName()));
             log.debug("Serialized cloud event: {}", cloudEventSerialized);
-            response = restTemplate.postForObject(functionUrl.toString(), cloudEventSerialized, String.class);
-            log.info("OpenFaaS function response: {}", response);
-            // TODO Error Handling -> Invalid Message Topic
-            JsonNode payload = objectMapper.readTree(response);
-            if(payload.isArray()){
-                //Routing slip implementation here
-                log.info("Return of FaaS is an array");
-            }else{
-                sendErrorMessageToInvalidMessageTopic("Return of FaaS function is not an array:" + response,cloudEvent);
-            }
-            //Maybe move the kafka invalid message topic handling to a log appender
+            return restTemplate.postForObject(functionUrl.toString(), cloudEventSerialized, String.class);
+        } catch (MalformedURLException e) {
+            // TODO decide error behavoiur and commit behaviour
         } catch (JsonProcessingException e) {
             log.error("Failed to serialize CloudEvent '{}'.", cloudEvent);
-            sendErrorMessageToInvalidMessageTopic("Failed to serialize CloudEvent: " + cloudEvent.toString(),cloudEvent);
-        } catch (IOException e) {
-            log.error("Failed to parse JSON from response '{}'.", response);
-            sendErrorMessageToInvalidMessageTopic("Failed to parse JSON from response: " + response,cloudEvent);
+            sendErrorMessageToInvalidMessageTopic("Failed to serialize CloudEvent: " + cloudEvent.toString(), cloudEvent);
+        }
+        return null;
+    }
+
+    public ArrayList<MicoCloudEventImpl<JsonNode>> parseFunctionResult(String functionResult, MicoCloudEventImpl<JsonNode> sourceCloudEvent) {
+        try {
+            // TODO Error Handling -> Invalid Message Topic
+            return Json.decodeValue(functionResult, new TypeReference<ArrayList<MicoCloudEventImpl<JsonNode>>>() {});
+            //sendErrorMessageToInvalidMessageTopic("Return of FaaS function is not an array:" + functionResult, sourceCloudEvent);
+            //Maybe move the kafka invalid message topic handling to a log appender
+        } catch (IllegalStateException e) {
+            log.error("Failed to parse JSON from response '{}'.", functionResult);
+            sendErrorMessageToInvalidMessageTopic("Failed to parse JSON from response: " + functionResult, sourceCloudEvent);
         } catch (HttpStatusCodeException e){
             log.error("A client error occurred with http status:{} . These exceptions are triggered if the  FaaS function does not return 200 OK as the status code", e.getStatusCode(),e);
-            sendErrorMessageToInvalidMessageTopic(e.toString(),cloudEvent);
-
+            sendErrorMessageToInvalidMessageTopic(e.toString(),sourceCloudEvent);
         }
+        // TODO refactor error reporting to use exceptions similar to exception error
+        // reporting in mico core api (see HttpStatusCodeException)
+        return null;
+    }
+
+    public void sendCloudEvent(MicoCloudEventImpl<JsonNode> cloudEvent) {
+        // TODO call routing slip logic here
+
+        // default case:
+        this.sendCloudEvent(cloudEvent, this.kafkaConfig.getOutputTopic());
+    }
+
+    private void sendCloudEvent(MicoCloudEventImpl<JsonNode> cloudEvent, String topic) {
+        cloudEvent = this.updateRouteHistoryWithTopic(cloudEvent, topic);
+        // TODO commit logic/transactions
+        kafkaTemplate.send(topic, cloudEvent);
     }
 
     private void sendErrorMessageToInvalidMessageTopic(String errorMessage, MicoCloudEventImpl<JsonNode> cloudEvent) {
@@ -98,7 +130,7 @@ public class MessageListener {
     private void sendErrorMessage(String errorMessage, MicoCloudEventImpl<JsonNode> cloudEvent, String topic) {
         log.error(errorMessage);
         MicoCloudEventImpl<JsonNode> cloudEventErrorReportMessage = getCloudEventErrorReportMessage(errorMessage,cloudEvent.getId());
-        kafkaTemplate.send(INVALID_MESSAGE_TOPIC,cloudEventErrorReportMessage);
+        kafkaTemplate.send(kafkaConfig.getInvalidMessageTopic(), cloudEventErrorReportMessage);
     }
 
 
