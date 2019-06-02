@@ -42,6 +42,11 @@ public class MessageListener {
     @Autowired
     private OpenFaaSConfig openFaaSConfig;
 
+    /**
+     * Entry point for incoming messages from kafka.
+     *
+     * @param cloudEvent
+     */
     @KafkaListener(topics = "${kafka.input-topic}")
     public void receive(MicoCloudEventImpl<JsonNode> cloudEvent) {
         log.debug("Received CloudEvent message: {}", cloudEvent);
@@ -59,19 +64,47 @@ public class MessageListener {
         }
     }
 
+    /**
+     * Add a function call routing step to the routing history of the cloud event.
+     *
+     * @param cloudEvent the cloud event to update
+     * @param functionId the id of the function applied to the cloud event next
+     * @return the updated cloud event
+     */
     public MicoCloudEventImpl<JsonNode> updateRouteHistoryWithFunctionCall(MicoCloudEventImpl<JsonNode> cloudEvent, String functionId) {
-        return this.updateRouteHistory(cloudEvent, functionId, "topic");
+        return this.updateRouteHistory(cloudEvent, functionId, "faas-function");
     }
 
+    /**
+     * Add a topic routing step to the routing history of the cloud event.
+     *
+     * @param cloudEvent the cloud event to update
+     * @param topic the next topic the event will be sent to
+     * @return the updated cloud event
+     */
     public MicoCloudEventImpl<JsonNode> updateRouteHistoryWithTopic(MicoCloudEventImpl<JsonNode> cloudEvent, String topic) {
         return this.updateRouteHistory(cloudEvent, topic, "topic");
     }
 
-    public MicoCloudEventImpl<JsonNode> updateRouteHistory(MicoCloudEventImpl<JsonNode> cloudEvent, String step, String type) {
+    /**
+     * Update the routing history in the `route` header field of the cloud event.
+     *
+     * @param cloudEvent the cloud event to update
+     * @param id the string id of the next routing step the message will take
+     * @param type the type of the routing step ("topic" or "faas-function")
+     * @return the updated cloud event
+     */
+    public MicoCloudEventImpl<JsonNode> updateRouteHistory(MicoCloudEventImpl<JsonNode> cloudEvent, String id, String type) {
         // TODO update route history here
         return cloudEvent;
     }
 
+    /**
+     * Synchronously call the configured openFaaS function.
+     *
+     * @param cloudEvent the cloud event used as parameter for the function
+     * @return the result of the function call (in serialized form)
+     */
     public String callFaasFunction(MicoCloudEventImpl<JsonNode> cloudEvent) {
         try {
             URL functionUrl = openFaaSConfig.getFunctionUrl();
@@ -88,6 +121,13 @@ public class MessageListener {
         return null;
     }
 
+    /**
+     * Parse the result of a faas function call.
+     *
+     * @param functionResult must be a json array of cloud events
+     * @param sourceCloudEvent only used for better error messages
+     * @return an ArrayList of cloud events
+     */
     public ArrayList<MicoCloudEventImpl<JsonNode>> parseFunctionResult(String functionResult, MicoCloudEventImpl<JsonNode> sourceCloudEvent) {
         try {
             // TODO Error Handling -> Invalid Message Topic
@@ -106,6 +146,11 @@ public class MessageListener {
         return null;
     }
 
+    /**
+     * Send cloud event to default topic or topic(s) next in the routingSlip.
+     *
+     * @param cloudEvent the cloud event to send
+     */
     public void sendCloudEvent(MicoCloudEventImpl<JsonNode> cloudEvent) {
         // TODO call routing slip logic here
 
@@ -113,6 +158,14 @@ public class MessageListener {
         this.sendCloudEvent(cloudEvent, this.kafkaConfig.getOutputTopic());
     }
 
+    /**
+     * Send cloud event to the specified topic.
+     *
+     * This method also updates the route history of the cloud event before sending.
+     *
+     * @param cloudEvent the cloud event to send
+     * @param topic the kafka topic to send the cloud event to
+     */
     private void sendCloudEvent(MicoCloudEventImpl<JsonNode> cloudEvent, String topic) {
         cloudEvent = this.updateRouteHistoryWithTopic(cloudEvent, topic);
         // TODO commit logic/transactions

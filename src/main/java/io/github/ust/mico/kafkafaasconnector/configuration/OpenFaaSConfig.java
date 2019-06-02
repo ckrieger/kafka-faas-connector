@@ -43,6 +43,12 @@ public class OpenFaaSConfig {
     @NotNull
     private boolean skipFunctionCall = false;
 
+    /**
+     * Get the url for the configured function using gateway and function.
+     *
+     * @return the constructed url
+     * @throws MalformedURLException
+     */
     public URL getFunctionUrl() throws MalformedURLException {
         try {
             URL gatewayUrl = new URL(this.getGateway());
