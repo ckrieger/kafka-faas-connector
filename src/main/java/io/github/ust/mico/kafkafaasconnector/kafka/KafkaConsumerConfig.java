@@ -29,14 +29,23 @@ public class KafkaConsumerConfig {
     @Value("${kafka.bootstrap-servers}")
     private String bootstrapServers;
 
+    @Value("${spring.embedded.kafka.brokers}")
+    private String embeddedBootstrapServers;
+
     @Autowired
     private KafkaTemplate<Object, Object> kafkaTemplate;
 
     @Bean
     public Map<String, Object> consumerConfigs() {
         Map<String, Object> properties = new HashMap<>();
-        properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
-                bootstrapServers);
+        if (embeddedBootstrapServers != null) {
+            // give priority to embedded kafka
+            properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
+                    embeddedBootstrapServers);
+        } else {
+            properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
+                    bootstrapServers);
+        }
         properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
                 ErrorHandlingDeserializer2.class);
         properties.put(ErrorHandlingDeserializer2.KEY_DESERIALIZER_CLASS,
