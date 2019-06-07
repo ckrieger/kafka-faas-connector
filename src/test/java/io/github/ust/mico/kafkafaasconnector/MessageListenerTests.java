@@ -2,9 +2,11 @@ package io.github.ust.mico.kafkafaasconnector;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import org.junit.BeforeClass;
@@ -21,6 +23,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import io.github.ust.mico.kafkafaasconnector.kafka.MicoCloudEventImpl;
+import io.cloudevents.json.Json;
 import io.github.ust.mico.kafkafaasconnector.TestConstants;
 
 @RunWith(SpringRunner.class)
@@ -53,10 +56,28 @@ public class MessageListenerTests {
     }
 
     @Test
-    public void parseFunctionResult() {
+    public void parseEmptyFunctionResult() {
         ArrayList<MicoCloudEventImpl<JsonNode>> result = this.listener.parseFunctionResult("[]", null);
         assertNotNull(result);
         assertEquals(0, result.size());
+    }
+
+    @Test
+    public void parseFunctionResult() throws JsonProcessingException {
+        MicoCloudEventImpl<JsonNode> cloudEvent1 = TestConstants.basicCloudEvent("CloudEvent1");
+        MicoCloudEventImpl<JsonNode> cloudEvent2 = TestConstants.basicCloudEvent("CloudEvent2");
+        ArrayList<MicoCloudEventImpl<JsonNode>> input = new ArrayList<>();
+        input.add(cloudEvent1);
+        input.add(cloudEvent2);
+        String functionInput = Json.encode(input);
+        ArrayList<MicoCloudEventImpl<JsonNode>> result = this.listener.parseFunctionResult(functionInput, null);
+        assertNotNull(result);
+        assertEquals(2, result.size());
+        assertEquals(result.get(0).getId(), cloudEvent1.getId());
+        assertEquals(result.get(0).getSource(), cloudEvent1.getSource());
+        assertEquals(result.get(0).getType(), cloudEvent1.getType());
+        assertTrue(result.get(0).getTime().get().isEqual(cloudEvent1.getTime().get()));
+        assertEquals(result.get(1).getId(), cloudEvent2.getId());
     }
 
 }
