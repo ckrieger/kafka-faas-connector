@@ -1,9 +1,7 @@
 package io.github.ust.mico.kafkafaasconnector;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.cloudevents.json.Json;
 import io.github.ust.mico.kafkafaasconnector.configuration.KafkaConfig;
@@ -29,7 +27,6 @@ import java.util.Optional;
 @Component
 public class MessageListener {
 
-    private static final ObjectMapper objectMapper = new ObjectMapper();
     protected static final String CONTENT_TYPE = "application/json";
 
     @Autowired
@@ -111,12 +108,12 @@ public class MessageListener {
         try {
             URL functionUrl = openFaaSConfig.getFunctionUrl();
             log.debug("Start request to function '{}'", functionUrl.toString());
-            String cloudEventSerialized = objectMapper.writeValueAsString(this.updateRouteHistoryWithFunctionCall(cloudEvent, openFaaSConfig.getFunctionName()));
+            String cloudEventSerialized = Json.encode(this.updateRouteHistoryWithFunctionCall(cloudEvent, openFaaSConfig.getFunctionName()));
             log.debug("Serialized cloud event: {}", cloudEventSerialized);
             return restTemplate.postForObject(functionUrl.toString(), cloudEventSerialized, String.class);
         } catch (MalformedURLException e) {
             // TODO decide error behaviour and commit behaviour
-        } catch (JsonProcessingException e) {
+        } catch (IllegalStateException e) {
             log.error("Failed to serialize CloudEvent '{}'.", cloudEvent);
             sendErrorMessageToInvalidMessageTopic("Failed to serialize CloudEvent: " + cloudEvent.toString(), cloudEvent);
         }
@@ -204,7 +201,7 @@ public class MessageListener {
             .setContentType(CONTENT_TYPE)
             .setRandomId()
             .setTime(ZonedDateTime.now())
-            .setData(objectMapper.valueToTree(errorReportMessage))
+            .setData(Json.MAPPER.valueToTree(errorReportMessage))
             .setType(ErrorReportMessage.class.getName());
     }
 
