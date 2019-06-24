@@ -78,6 +78,7 @@ public class MessageListenerTests {
         assertEquals(result.get(0).getType(), cloudEvent1.getType());
         assertTrue(result.get(0).getTime().get().isEqual(cloudEvent1.getTime().get()));
         assertEquals(result.get(1).getId(), cloudEvent2.getId());
+        assertEquals(result.get(0).getRoutingSlip(), cloudEvent2.getRoutingSlip());
     }
 
 }

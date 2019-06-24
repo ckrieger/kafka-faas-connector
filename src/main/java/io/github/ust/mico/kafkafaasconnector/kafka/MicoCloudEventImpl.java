@@ -41,7 +41,7 @@ public class MicoCloudEventImpl<T> implements CloudEvent<T> {
     private String correlationId;
     private String createFrom;
     private String route;
-    private List<String> routingSlip;
+    private List<ArrayList<String>> routingSlip;
     private boolean isTestMessage;
     private String filterOutBeforeTopic;
     private ZonedDateTime expiryDate;
@@ -72,11 +72,11 @@ public class MicoCloudEventImpl<T> implements CloudEvent<T> {
 
     @JsonAnySetter
     public void setUnknownExtensions(String key, String value) {
-        UnknownExtension unknownExtension = new UnknownExtension(key,value);
+        UnknownExtension unknownExtension = new UnknownExtension(key, value);
         extensions.add(unknownExtension);
     }
 
-    public MicoCloudEventImpl<T> addExtension(Extension extension){
+    public MicoCloudEventImpl<T> addExtension(Extension extension) {
         extensions.add(extension);
         return this;
     }
@@ -113,7 +113,7 @@ public class MicoCloudEventImpl<T> implements CloudEvent<T> {
         return Optional.ofNullable(route);
     }
 
-    public Optional<List<String>> getRoutingSlip() {
+    public Optional<List<ArrayList<String>>> getRoutingSlip() {
         return Optional.ofNullable(routingSlip);
     }
 

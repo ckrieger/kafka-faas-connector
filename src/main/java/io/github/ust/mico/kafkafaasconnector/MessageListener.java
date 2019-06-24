@@ -1,13 +1,12 @@
 package io.github.ust.mico.kafkafaasconnector;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.core.type.TypeReference;
-
+import com.fasterxml.jackson.databind.JsonNode;
 import io.cloudevents.json.Json;
 import io.github.ust.mico.kafkafaasconnector.configuration.KafkaConfig;
 import io.github.ust.mico.kafkafaasconnector.configuration.OpenFaaSConfig;
-import io.github.ust.mico.kafkafaasconnector.kafka.MicoCloudEventImpl;
 import io.github.ust.mico.kafkafaasconnector.kafka.ErrorReportMessage;
+import io.github.ust.mico.kafkafaasconnector.kafka.MicoCloudEventImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -21,7 +20,6 @@ import java.net.URL;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 @Slf4j
 @Component
@@ -152,11 +150,13 @@ public class MessageListener {
      */
     public void sendCloudEvent(MicoCloudEventImpl<JsonNode> cloudEvent) {
         try {
-            List<String> route = cloudEvent.getRoutingSlip().get();
-            String destination = route.get(route.size() - 1);
+            List<ArrayList<String>> route = cloudEvent.getRoutingSlip().get();
+            ArrayList<String> destinations = route.get(route.size() - 1);
             route.remove(route.size() - 1);
             // Check if valid topic?
-            this.sendCloudEvent(cloudEvent, destination);
+            for (String topic : destinations) {
+                this.sendCloudEvent(cloudEvent, topic);
+            }
         } catch (NullPointerException e) {
             log.error("Failed to find a routing slip in the CloudEvent '{}'.", cloudEvent);
         } catch (IndexOutOfBoundsException e) {

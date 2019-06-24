@@ -25,6 +25,7 @@ public class TestConstants {
     public static String ROUTING_TOPIC_4 = "route-4";
 
     // CloudEvents
+
     /**
      * Build a basic cloud event wiht dummy entries and with the given id.
      *
@@ -49,7 +50,7 @@ public class TestConstants {
     /**
      * Mark the given cloud event as test message.
      *
-     * @param message the cloud event to mark as test message
+     * @param message              the cloud event to mark as test message
      * @param filterOutBeforeTopic filter out the message before this topic
      * @return
      */
@@ -59,17 +60,35 @@ public class TestConstants {
 
     /**
      * Add a single topic routing step to the message.
-     *
+     * <p>
      * Create a new routing slip if no present. Appends topic to routing slip.
      *
      * @param message the message to edit
-     * @param topic the topic to add to the routing slip
+     * @param topic   the topic to add to the routing slip
      * @return
      */
     public static MicoCloudEventImpl<JsonNode> addSingleTopicRoutingStep(MicoCloudEventImpl<JsonNode> message, String topic) {
-        Optional<List<String>> routingSlip = message.getRoutingSlip();
-        List<String> newRoutingSlip = routingSlip.orElse(new ArrayList<String>());
-        newRoutingSlip.add(topic);
+        Optional<List<ArrayList<String>>> routingSlip = message.getRoutingSlip();
+        List<ArrayList<String>> newRoutingSlip = routingSlip.orElse(new ArrayList<>());
+        ArrayList<String> destinations = new ArrayList();
+        destinations.add(topic);
+        newRoutingSlip.add(destinations);
+        return message.setRoutingSlip(newRoutingSlip);
+    }
+
+    /**
+     * Add multiple topics as a Array to the message
+     * <p>
+     * Create a new routing slip if none are found. Appends topics to new routing slip
+     *
+     * @param message
+     * @param destinations
+     * @return
+     */
+    public static MicoCloudEventImpl<JsonNode> addMultipleTopicRoutingSteps(MicoCloudEventImpl<JsonNode> message, ArrayList<String> destinations) {
+        Optional<List<ArrayList<String>>> routingSlip = message.getRoutingSlip();
+        List<ArrayList<String>> newRoutingSlip = routingSlip.orElse(new ArrayList<>());
+        newRoutingSlip.add(destinations);
         return message.setRoutingSlip(newRoutingSlip);
     }
 
@@ -96,10 +115,10 @@ public class TestConstants {
     /**
      * Mark the message as part of a sequence.
      *
-     * @param message the message to mark as part of a sequence
-     * @param sequenceId the sequence id
+     * @param message        the message to mark as part of a sequence
+     * @param sequenceId     the sequence id
      * @param sequenceNumber the number this message has in the sequence (1-based index)
-     * @param sequenceSize the total number of messages in the sequence
+     * @param sequenceSize   the total number of messages in the sequence
      * @return
      */
     public static MicoCloudEventImpl<JsonNode> setSequenceAttributes(MicoCloudEventImpl<JsonNode> message, String sequenceId, int sequenceNumber, int sequenceSize) {
