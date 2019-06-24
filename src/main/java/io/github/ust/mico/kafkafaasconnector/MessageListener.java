@@ -20,6 +20,7 @@ import java.net.URL;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Component
@@ -150,9 +151,10 @@ public class MessageListener {
      */
     public void sendCloudEvent(MicoCloudEventImpl<JsonNode> cloudEvent) {
         try {
-            List<ArrayList<String>> route = cloudEvent.getRoutingSlip().get();
-            ArrayList<String> destinations = route.get(route.size() - 1);
-            route.remove(route.size() - 1);
+            Optional<List<ArrayList<String>>> routingSlip = cloudEvent.getRoutingSlip();
+            List<ArrayList<String>> newRoutingSlip = routingSlip.orElse(new ArrayList<>());
+            ArrayList<String> destinations = newRoutingSlip.get(newRoutingSlip.size() - 1);
+            newRoutingSlip.remove(newRoutingSlip.size() - 1);
             // Check if valid topic?
             for (String topic : destinations) {
                 this.sendCloudEvent(cloudEvent, topic);
