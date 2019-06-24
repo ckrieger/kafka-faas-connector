@@ -38,13 +38,13 @@ public class MessageListenerTests {
     // https://docs.spring.io/spring-kafka/docs/2.2.6.RELEASE/reference/html/#kafka-testing-junit4-class-rule
     @ClassRule
     public static EmbeddedKafkaRule broker = new EmbeddedKafkaRule(1, false,
-            TestConstants.INPUT_TOPIC, TestConstants.OUTPUT_TOPIC,
-            TestConstants.DEAD_LETTER_TOPIC, TestConstants.INVALID_MESSAGE_TOPIC,
-            TestConstants.ROUTING_TOPIC_1, TestConstants.ROUTING_TOPIC_2,
-            TestConstants.ROUTING_TOPIC_3, TestConstants.ROUTING_TOPIC_4);
+        TestConstants.INPUT_TOPIC, TestConstants.OUTPUT_TOPIC,
+        TestConstants.DEAD_LETTER_TOPIC, TestConstants.INVALID_MESSAGE_TOPIC,
+        TestConstants.ROUTING_TOPIC_1, TestConstants.ROUTING_TOPIC_2,
+        TestConstants.ROUTING_TOPIC_3, TestConstants.ROUTING_TOPIC_4);
 
-    // TODO explore why autowired fails here
-    private MessageListener listener = new MessageListener();
+    @Autowired
+    private MessageListener messageListener;
 
     @BeforeClass
     public static void setup() {
@@ -57,7 +57,7 @@ public class MessageListenerTests {
 
     @Test
     public void parseEmptyFunctionResult() {
-        ArrayList<MicoCloudEventImpl<JsonNode>> result = this.listener.parseFunctionResult("[]", null);
+        ArrayList<MicoCloudEventImpl<JsonNode>> result = this.messageListener.parseFunctionResult("[]", null);
         assertNotNull(result);
         assertEquals(0, result.size());
     }
@@ -70,7 +70,7 @@ public class MessageListenerTests {
         input.add(cloudEvent1);
         input.add(cloudEvent2);
         String functionInput = Json.encode(input);
-        ArrayList<MicoCloudEventImpl<JsonNode>> result = this.listener.parseFunctionResult(functionInput, null);
+        ArrayList<MicoCloudEventImpl<JsonNode>> result = this.messageListener.parseFunctionResult(functionInput, null);
         assertNotNull(result);
         assertEquals(2, result.size());
         assertEquals(result.get(0).getId(), cloudEvent1.getId());
