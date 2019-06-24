@@ -52,7 +52,9 @@ public class MessageListener {
             // data is entirely optional
             log.debug("Received message does not include any data!");
         }
-        if (this.openFaaSConfig.isSkipFunctionCall()) {
+        if (cloudEvent.getExpiryDate().map(exp -> exp.compareTo(ZonedDateTime.now()) < 0).orElse(false)) {
+            log.debug("Received expired message!");
+        } else if (this.openFaaSConfig.isSkipFunctionCall()) {
             // when skipping the openFaaS function just pass on the original cloudEvent
             this.sendCloudEvent(cloudEvent);
         } else {

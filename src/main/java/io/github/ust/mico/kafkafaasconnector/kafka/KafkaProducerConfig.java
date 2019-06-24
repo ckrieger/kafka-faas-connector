@@ -20,6 +20,9 @@ public class KafkaProducerConfig {
     @Value(value = "${kafka.bootstrap-servers}")
     private String bootstrapServers;
 
+    @Value("${spring.embedded.kafka.brokers}")
+    private String embeddedBootstrapServers;
+
     @Bean
     public ProducerFactory<String, MicoCloudEventImpl<JsonNode>> producerFactory() {
         Map<String, Object> configProps = putConfig();
@@ -34,9 +37,14 @@ public class KafkaProducerConfig {
 
     private Map<String, Object> putConfig() {
         Map<String, Object> configProps = new HashMap<>();
-        configProps.put(
-                ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
-                bootstrapServers);
+        if (embeddedBootstrapServers != null) {
+            // give priority to embedded kafka
+            configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
+                    embeddedBootstrapServers);
+        } else {
+            configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
+                    bootstrapServers);
+        }
         configProps.put(
                 ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
                 StringSerializer.class);
