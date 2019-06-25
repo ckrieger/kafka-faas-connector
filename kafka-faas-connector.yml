@@ -6,7 +6,7 @@ metadata:
   namespace: mico-workspace
 data:
   spring.profiles.active: prod
-  kafka.bootstrap-servers: kafka.openfaas:9092
+  kafka.bootstrap-servers: bootstrap.kafka:9092
   openfaas.gateway: http://gateway.openfaas:8080
 ---
 apiVersion: v1

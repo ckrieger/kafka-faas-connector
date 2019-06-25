@@ -20,9 +20,10 @@
 package io.github.ust.mico.kafkafaasconnector.kafka;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.github.ust.mico.kafkafaasconnector.configuration.KafkaConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
@@ -35,12 +36,8 @@ import java.util.Map;
 @Configuration
 public class KafkaProducerConfig {
 
-
-    @Value(value = "${kafka.bootstrap-servers}")
-    private String bootstrapServers;
-
-    @Value("${spring.embedded.kafka.brokers}")
-    private String embeddedBootstrapServers;
+    @Autowired
+    private KafkaConfig kafkaConfig;
 
     @Bean
     public ProducerFactory<String, MicoCloudEventImpl<JsonNode>> producerFactory() {
@@ -56,20 +53,14 @@ public class KafkaProducerConfig {
 
     private Map<String, Object> putConfig() {
         Map<String, Object> configProps = new HashMap<>();
-        if (embeddedBootstrapServers != null) {
-            // give priority to embedded kafka
-            configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
-                    embeddedBootstrapServers);
-        } else {
-            configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
-                    bootstrapServers);
-        }
+        configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
+            kafkaConfig.getBootstrapServers());
         configProps.put(
-                ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
-                StringSerializer.class);
+            ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
+            StringSerializer.class);
         configProps.put(
-                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
-                CloudEventSerializer.class);
+            ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
+            CloudEventSerializer.class);
         return configProps;
     }
 

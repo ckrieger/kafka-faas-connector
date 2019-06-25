@@ -20,11 +20,11 @@
 package io.github.ust.mico.kafkafaasconnector.kafka;
 
 import io.github.ust.mico.kafkafaasconnector.MessageListener;
+import io.github.ust.mico.kafkafaasconnector.configuration.KafkaConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;
@@ -45,11 +45,8 @@ import java.util.Map;
 @Slf4j
 public class KafkaConsumerConfig {
 
-    @Value("${kafka.bootstrap-servers}")
-    private String bootstrapServers;
-
-    @Value("${spring.embedded.kafka.brokers}")
-    private String embeddedBootstrapServers;
+    @Autowired
+    private KafkaConfig kafkaConfig;
 
     @Autowired
     private KafkaTemplate<Object, Object> kafkaTemplate;
@@ -57,23 +54,17 @@ public class KafkaConsumerConfig {
     @Bean
     public Map<String, Object> consumerConfigs() {
         Map<String, Object> properties = new HashMap<>();
-        if (embeddedBootstrapServers != null) {
-            // give priority to embedded kafka
-            properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
-                    embeddedBootstrapServers);
-        } else {
-            properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
-                    bootstrapServers);
-        }
+        properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
+            kafkaConfig.getBootstrapServers());
         properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
-                ErrorHandlingDeserializer2.class);
+            ErrorHandlingDeserializer2.class);
         properties.put(ErrorHandlingDeserializer2.KEY_DESERIALIZER_CLASS,
-                StringDeserializer.class);
+            StringDeserializer.class);
         //https://docs.spring.io/spring-kafka/docs/2.2.0.RELEASE/reference/html/_reference.html#error-handling-deserializer
         properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
-                ErrorHandlingDeserializer2.class);
+            ErrorHandlingDeserializer2.class);
         properties.put(ErrorHandlingDeserializer2.VALUE_DESERIALIZER_CLASS,
-                CloudEventDeserializer.class);
+            CloudEventDeserializer.class);
         properties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
         properties.put(ConsumerConfig.GROUP_ID_CONFIG, "TestGroup");
 
@@ -88,7 +79,7 @@ public class KafkaConsumerConfig {
     @Bean
     public KafkaListenerContainerFactory<ConcurrentMessageListenerContainer<String, MicoCloudEventImpl>> kafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, MicoCloudEventImpl> factory =
-                new ConcurrentKafkaListenerContainerFactory<>();
+            new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory());
         factory.setErrorHandler(new SeekToCurrentErrorHandler(1));
         //TODO Add DeadLetterPublishingRecoverer later
