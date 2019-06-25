@@ -1,0 +1,7 @@
+sudo: false
+language: java
+env:
+  - spring_profiles_active=testing
+cache:
+  directories:
+- $HOME/.m2
