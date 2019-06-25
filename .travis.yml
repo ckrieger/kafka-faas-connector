@@ -4,4 +4,4 @@ env:
   - spring_profiles_active=testing
 cache:
   directories:
-- $HOME/.m2
+  - $HOME/.m2
