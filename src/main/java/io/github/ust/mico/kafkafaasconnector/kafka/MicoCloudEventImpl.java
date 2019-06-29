@@ -51,6 +51,37 @@ public class MicoCloudEventImpl<T> implements CloudEvent<T> {
     private String returnTopic;
     private String dataRef;
 
+    /**
+     * Copy constructor providing a shallow copy of the cloud event.
+     *
+     * @param cloudEvent the event to copy
+     */
+    public MicoCloudEventImpl(MicoCloudEventImpl<T> cloudEvent) {
+        this(
+            cloudEvent.id,
+            cloudEvent.source,
+            cloudEvent.type,
+            cloudEvent.specVersion,
+            cloudEvent.time,
+            cloudEvent.schemaURL,
+            cloudEvent.contentType,
+            cloudEvent.data,
+            cloudEvent.extensions,
+            cloudEvent.correlationId,
+            cloudEvent.createFrom,
+            cloudEvent.route,
+            cloudEvent.routingSlip,
+            cloudEvent.isTestMessage,
+            cloudEvent.filterOutBeforeTopic,
+            cloudEvent.expiryDate,
+            cloudEvent.sequenceId,
+            cloudEvent.sequenceNumber,
+            cloudEvent.sequenceSize,
+            cloudEvent.returnTopic,
+            cloudEvent.dataRef
+        );
+    }
+
     public MicoCloudEventImpl<T> setRandomId() {
         id = UUID.randomUUID().toString();
         return this;
@@ -68,37 +99,6 @@ public class MicoCloudEventImpl<T> implements CloudEvent<T> {
         extensions = cloudEvent.getExtensions().orElse(null);
         time = cloudEvent.getTime().orElse(null);
         return this;
-    }
-
-    /**
-     * Create a shallow copy of this cloud event.
-     *
-     * @return the copy
-     */
-    public MicoCloudEventImpl<T> copy() {
-        MicoCloudEventImpl<T> ce = new MicoCloudEventImpl<>();
-        // TODO this list needs to be manually maintained!
-        ce.id = this.id;
-        ce.source = this.source;
-        ce.type = this.type;
-        ce.time = this.time;
-        ce.schemaURL = this.schemaURL;
-        ce.contentType = this.contentType;
-        ce.data = this.data;
-        ce.extensions = this.extensions;
-        ce.correlationId = this.correlationId;
-        ce.createFrom = this.createFrom;
-        ce.route = this.route;
-        ce.routingSlip = this.routingSlip;
-        ce.isTestMessage = this.isTestMessage;
-        ce.filterOutBeforeTopic = this.filterOutBeforeTopic;
-        ce.expiryDate = this.expiryDate;
-        ce.sequenceId = this.sequenceId;
-        ce.sequenceNumber = this.sequenceNumber;
-        ce.sequenceSize = this.sequenceSize;
-        ce.returnTopic = this.returnTopic;
-        ce.dataRef = this.dataRef;
-        return ce;
     }
 
     @JsonAnySetter

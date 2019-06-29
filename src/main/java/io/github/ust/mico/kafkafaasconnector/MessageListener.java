@@ -99,7 +99,7 @@ public class MessageListener {
         RouteHistory routingStep = new RouteHistory(type, id, ZonedDateTime.now());
         List<RouteHistory> history = cloudEvent.getRoute().map(route -> new ArrayList<>(route)).orElse(new ArrayList<>());
         history.add(routingStep);
-        return cloudEvent.copy().setRoute(history);
+        return new MicoCloudEventImpl<JsonNode>(cloudEvent).setRoute(history);
     }
 
     /**
