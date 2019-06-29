@@ -132,6 +132,13 @@ public class MicoCloudEventImpl<T> implements CloudEvent<T> {
         return this;
     }
 
+    /**
+     * This method checks if it is necessary to filter it out. This only works
+     * for testMessages. It returns {@code true} if {@code isTestMessage} is
+     * true and the param {@code topic} equals {@code filterOutBeforeTopic}.
+     * @param topic The target topic or destination of this message.
+     * @return isTestMessage && topic.equals(filterOutBeforeTopic)
+     */
     public boolean isFilterOutNecessary(String topic) {
         return isTestMessage != null && isTestMessage && topic.equals(filterOutBeforeTopic);
     }
