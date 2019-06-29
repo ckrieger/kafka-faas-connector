@@ -1,17 +1,31 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package io.github.ust.mico.kafkafaasconnector;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-
-import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 
+import io.github.ust.mico.kafkafaasconnector.configuration.KafkaConfig;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -34,24 +48,46 @@ import io.cloudevents.json.Json;
 import io.github.ust.mico.kafkafaasconnector.kafka.MicoCloudEventImpl;
 import io.github.ust.mico.kafkafaasconnector.kafka.RouteHistory;
 
+import javax.annotation.PostConstruct;
+
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.core.IsNull.notNullValue;
+import static org.junit.Assert.*;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.empty;
+
 @RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @EnableAutoConfiguration
 @AutoConfigureMockMvc
 @ActiveProfiles("testing")
 @DirtiesContext
+@Slf4j
 public class MessageListenerTests {
+
+    @Autowired
+    private KafkaConfig kafkaConfig;
+
+    private static boolean kafkaTopicInitDone = false;
 
     // https://docs.spring.io/spring-kafka/docs/2.2.6.RELEASE/reference/html/#kafka-testing-junit4-class-rule
     @ClassRule
-    public static EmbeddedKafkaRule broker = new EmbeddedKafkaRule(1, false,
-        TestConstants.INPUT_TOPIC, TestConstants.OUTPUT_TOPIC,
-        TestConstants.DEAD_LETTER_TOPIC, TestConstants.INVALID_MESSAGE_TOPIC,
-        TestConstants.ROUTING_TOPIC_1, TestConstants.ROUTING_TOPIC_2,
-        TestConstants.ROUTING_TOPIC_3, TestConstants.ROUTING_TOPIC_4);
+    public static EmbeddedKafkaRule broker = new EmbeddedKafkaRule(1, false);
 
     @Autowired
-    private MessageListener messageListener;
+    MessageListener messageListener;
+
+    @PostConstruct
+    public void before(){
+        //We need to add them outside of the rule because the autowired kakfaConfig is not accessible from the static rule
+        //We can not use @BeforeClass which is only executed once because it has to be static and we do not have access to the autowired kakfaConfig
+
+        Set<String> requiredTopics = MicoKafkaTestUtils.getRequiredTopics(kafkaConfig);
+        EmbeddedKafkaBroker embeddedKafka = broker.getEmbeddedKafka();
+        Set<String> alreadySetTopics = MicoKafkaTestUtils.requestActuallySetTopics(embeddedKafka);
+        requiredTopics.removeAll(alreadySetTopics);
+        requiredTopics.forEach(topic -> embeddedKafka.addTopics(topic));
+    }
 
     @Test
     public void parseEmptyFunctionResult() {
@@ -62,8 +98,8 @@ public class MessageListenerTests {
 
     @Test
     public void parseFunctionResult() throws JsonProcessingException {
-        MicoCloudEventImpl<JsonNode> cloudEvent1 = TestConstants.basicCloudEvent("CloudEvent1");
-        MicoCloudEventImpl<JsonNode> cloudEvent2 = TestConstants.basicCloudEvent("CloudEvent2");
+        MicoCloudEventImpl<JsonNode> cloudEvent1 = CloudEventTestUtils.basicCloudEvent("CloudEvent1");
+        MicoCloudEventImpl<JsonNode> cloudEvent2 = CloudEventTestUtils.basicCloudEvent("CloudEvent2");
         ArrayList<MicoCloudEventImpl<JsonNode>> input = new ArrayList<>();
         input.add(cloudEvent1);
         input.add(cloudEvent2);
@@ -85,16 +121,16 @@ public class MessageListenerTests {
     @Test
     public void testExpiredMessage() {
         EmbeddedKafkaBroker embeddedKafka = broker.getEmbeddedKafka();
-        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = TestConstants.getKafkaConsumer(embeddedKafka);
+        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = MicoKafkaTestUtils.getKafkaConsumer(embeddedKafka);
         embeddedKafka.consumeFromAllEmbeddedTopics(consumer);
 
-        KafkaTemplate<String, MicoCloudEventImpl<JsonNode>> template = TestConstants.getKafkaProducer(embeddedKafka);
+        KafkaTemplate<String, MicoCloudEventImpl<JsonNode>> template = MicoKafkaTestUtils.getKafkaProducer(embeddedKafka);
 
         String eventId = "CloudEventExpired";
 
         // generate and send cloud event message
-        MicoCloudEventImpl<JsonNode> cloudEvent = TestConstants.setPastExpiryDate(TestConstants.basicCloudEvent(eventId));
-        template.send(TestConstants.INPUT_TOPIC, "0", cloudEvent);
+        MicoCloudEventImpl<JsonNode> cloudEvent = CloudEventTestUtils.setPastExpiryDate(CloudEventTestUtils.basicCloudEvent(eventId));
+        template.send(kafkaConfig.getInputTopic(), "0", cloudEvent);
 
         // consume at least the message send by this unit test
         ConsumerRecords<String, MicoCloudEventImpl<JsonNode>> records = KafkaTestUtils.getRecords(consumer, 100);
@@ -104,8 +140,8 @@ public class MessageListenerTests {
         // test for expired cloud event message on topics other then the input topic
         java.util.function.Consumer<? super ConsumerRecord<String, MicoCloudEventImpl<JsonNode>>> predicate = record -> {
             if (record.value().getId().equals(eventId)) {
-                if (!record.topic().equals(TestConstants.INPUT_TOPIC)) {
-                    assertNotEquals("The expired message was wrongly processed and sent to the output channel!", record.topic(), TestConstants.OUTPUT_TOPIC);
+                if (!record.topic().equals(kafkaConfig.getInputTopic())) {
+                    assertNotEquals("The expired message was wrongly processed and sent to the output channel!", record.topic(), kafkaConfig.getOutputTopic());
                 }
             }
         };
@@ -113,8 +149,7 @@ public class MessageListenerTests {
         records2.forEach(predicate);
 
         // Don't forget to detach the consumer from kafka!
-        consumer.unsubscribe();
-        consumer.close();
+        MicoKafkaTestUtils.unsubscribeConsumer(consumer);
     }
 
     /**
@@ -123,35 +158,35 @@ public class MessageListenerTests {
     @Test
     public void testRouteHistory() {
         EmbeddedKafkaBroker embeddedKafka = broker.getEmbeddedKafka();
-        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = TestConstants.getKafkaConsumer(embeddedKafka);
+        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = MicoKafkaTestUtils.getKafkaConsumer(embeddedKafka);
         embeddedKafka.consumeFromAllEmbeddedTopics(consumer);
 
-        KafkaTemplate<String, MicoCloudEventImpl<JsonNode>> template = TestConstants.getKafkaProducer(embeddedKafka);
+        KafkaTemplate<String, MicoCloudEventImpl<JsonNode>> template = MicoKafkaTestUtils.getKafkaProducer(embeddedKafka);
 
         String eventIdSimple = "routeHistorySimple";
         String eventIdMultiStep = "routeHistoryMultiStep";
         String eventIdMultiDest = "routeHistoryMultiDest";
 
         // generate and send cloud event message
-        MicoCloudEventImpl<JsonNode> cloudEventSimple = TestConstants.basicCloudEvent(eventIdSimple);
-        MicoCloudEventImpl<JsonNode> cloudEventMultiStep = TestConstants.addSingleTopicRoutingStep(
-            TestConstants.addSingleTopicRoutingStep(
-                TestConstants.basicCloudEvent(eventIdMultiStep),
+        MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEvent(eventIdSimple);
+        MicoCloudEventImpl<JsonNode> cloudEventMultiStep = CloudEventTestUtils.addSingleTopicRoutingStep(
+            CloudEventTestUtils.addSingleTopicRoutingStep(
+                CloudEventTestUtils.basicCloudEvent(eventIdMultiStep),
                 TestConstants.ROUTING_TOPIC_1
             ),
-            TestConstants.INPUT_TOPIC
+            kafkaConfig.getInputTopic()
         );
         // test that messages with multiple destinations don't share the routing history (mutable list)
         ArrayList<String> destinations = new ArrayList<>();
-        destinations.add(TestConstants.OUTPUT_TOPIC);
+        destinations.add(kafkaConfig.getOutputTopic());
         destinations.add(TestConstants.ROUTING_TOPIC_1);
-        MicoCloudEventImpl<JsonNode> cloudEventMultiDest = TestConstants.addMultipleTopicRoutingSteps(
-            TestConstants.basicCloudEvent(eventIdMultiDest),
+        MicoCloudEventImpl<JsonNode> cloudEventMultiDest = CloudEventTestUtils.addMultipleTopicRoutingSteps(
+            CloudEventTestUtils.basicCloudEvent(eventIdMultiDest),
             destinations
         );
-        template.send(TestConstants.INPUT_TOPIC, "0", cloudEventSimple);
-        template.send(TestConstants.INPUT_TOPIC, "0", cloudEventMultiStep);
-        template.send(TestConstants.INPUT_TOPIC, "0", cloudEventMultiDest);
+        template.send(kafkaConfig.getInputTopic(), "0", cloudEventSimple);
+        template.send(kafkaConfig.getInputTopic(), "0", cloudEventMultiStep);
+        template.send(kafkaConfig.getInputTopic(), "0", cloudEventMultiDest);
 
         ArrayList<ConsumerRecord<String, MicoCloudEventImpl<JsonNode>>> events = new ArrayList<>();
         // consume all message send during this unit test
@@ -164,13 +199,13 @@ public class MessageListenerTests {
         // test for expired cloud event message on topics other then the input topic
         java.util.function.Consumer<? super ConsumerRecord<String, MicoCloudEventImpl<JsonNode>>> predicate = record -> {
             if (record.value().getId().equals("eventId")) {
-                if (!record.topic().equals(TestConstants.INPUT_TOPIC)) {
-                    assertNotEquals("The expired message was wrongly processed and sent to the output channel!", record.topic(), TestConstants.OUTPUT_TOPIC);
+                if (!record.topic().equals(kafkaConfig.getInputTopic())) {
+                    assertNotEquals("The expired message was wrongly processed and sent to the output channel!", record.topic(), kafkaConfig.getOutputTopic());
                 }
             }
         };
         events.forEach(record -> {
-            if (!record.topic().equals(TestConstants.INPUT_TOPIC)) {
+            if (!record.topic().equals(kafkaConfig.getInputTopic())) {
                 List<RouteHistory> history = record.value().getRoute().orElse(new ArrayList<>());
                 assertTrue("Route history was not set/empty.", history.size() > 0);
                 RouteHistory lastStep = history.get(history.size() - 1);
@@ -181,15 +216,98 @@ public class MessageListenerTests {
                     assertTrue("Route history is missing a step.", history.size() > 1);
                     RouteHistory firstStep = history.get(0);
                     assertEquals("Route history step has wrong type (should be 'topic')", "topic", firstStep.getType().orElse(""));
-                    assertEquals(firstStep.getId().orElse(""), TestConstants.INPUT_TOPIC);
+                    assertEquals(firstStep.getId().orElse(""), kafkaConfig.getInputTopic());
                 }
             }
         });
 
         // Don't forget to detach the consumer from kafka!
-        consumer.unsubscribe();
-        consumer.close();
+        MicoKafkaTestUtils.unsubscribeConsumer(consumer);
     }
 
+    /**
+     * Tests if the need to filter out a message with "isTestMessage = true" and a "FilterOutBeforeTopic = message destination"
+     * is correctly recognized.
+     */
+    @Test
+    public void testFilterOutCheck() {
+        MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
+        String testFilterTopic = "TestFilterTopic";
+        cloudEventSimple.setFilterOutBeforeTopic(testFilterTopic);
+        cloudEventSimple.setIsTestMessage(true);
 
+        assertTrue("The message should be filtered out", messageListener.isTestMessageCompleted(cloudEventSimple,testFilterTopic));
+    }
+
+    /**
+     * Only "FilterOutBeforeTopic = message destination" is not enough to filter a message out. It needs to be a test message.
+     */
+    @Test
+    public void testNotFilterOutCheck() {
+        MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
+        String testFilterTopic = "TestFilterTopic";
+        cloudEventSimple.setFilterOutBeforeTopic(testFilterTopic);
+
+        assertFalse("The message not should be filtered out, because it is not a test message", messageListener.isTestMessageCompleted(cloudEventSimple,testFilterTopic));
+    }
+
+    /**
+     * Tests if a test message with "FilterOutBeforeTopic != message destination" will wrongly be filtered out.
+     */
+    @Test
+    public void testNotFilterOutCheckDifferentTopics() {
+        MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
+        String testFilterTopic = "TestFilterTopic";
+        cloudEventSimple.setFilterOutBeforeTopic(testFilterTopic);
+        cloudEventSimple.setIsTestMessage(true);
+
+        assertFalse("The message not should be filtered out, because it has not reached the filter out topic", messageListener.isTestMessageCompleted(cloudEventSimple,testFilterTopic + "Difference"));
+    }
+
+    /**
+     * Test if a not test message is filtered out
+     */
+    @Test
+    public void testNotFilterNormalMessages() {
+        EmbeddedKafkaBroker embeddedKafka = broker.getEmbeddedKafka();
+        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = MicoKafkaTestUtils.getKafkaConsumer(embeddedKafka);
+        embeddedKafka.consumeFromAnEmbeddedTopic(consumer, kafkaConfig.getOutputTopic());
+        KafkaTemplate<String, MicoCloudEventImpl<JsonNode>> template = MicoKafkaTestUtils.getKafkaProducer(embeddedKafka);
+
+        MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
+        template.send(kafkaConfig.getInputTopic(), "0", cloudEventSimple);
+
+        ConsumerRecord<String, MicoCloudEventImpl<JsonNode>> event = KafkaTestUtils.getSingleRecord(consumer, kafkaConfig.getOutputTopic(), 1000);
+        assertThat(event, is(notNullValue()));
+        assertThat(event.value().getId(), is(equalTo(cloudEventSimple.getId())));
+
+        // Don't forget to detach the consumer from kafka!
+        MicoKafkaTestUtils.unsubscribeConsumer(consumer);
+    }
+
+    /**
+     * Tests if a test message which should be filtered out (FilterOutBeforeTopic = message destination) is correctly filtered out.
+     */
+    @Test
+    public void testFilterTestMessages() {
+        EmbeddedKafkaBroker embeddedKafka = broker.getEmbeddedKafka();
+        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = MicoKafkaTestUtils.getKafkaConsumer(embeddedKafka);
+        embeddedKafka.consumeFromEmbeddedTopics(consumer, kafkaConfig.getTestMessageOutputTopic(), kafkaConfig.getOutputTopic());
+        KafkaTemplate<String, MicoCloudEventImpl<JsonNode>> template = MicoKafkaTestUtils.getKafkaProducer(embeddedKafka);
+
+        MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
+        cloudEventSimple.setIsTestMessage(true);
+        cloudEventSimple.setFilterOutBeforeTopic(kafkaConfig.getOutputTopic());
+        template.send(kafkaConfig.getInputTopic(), "0", cloudEventSimple);
+
+        ConsumerRecord<String, MicoCloudEventImpl<JsonNode>> eventFilteredTestMessageTopic = KafkaTestUtils.getSingleRecord(consumer, kafkaConfig.getTestMessageOutputTopic(), 1000);
+        ArrayList<ConsumerRecord<String, MicoCloudEventImpl<JsonNode>>> otherEvents = new ArrayList<>();
+        KafkaTestUtils.getRecords(consumer, 1000).forEach(otherEvents::add);
+        assertThat("The event should be on the filtered test topc", eventFilteredTestMessageTopic, is(notNullValue()));
+        assertThat("The ids should be the same", eventFilteredTestMessageTopic.value().getId(), is(equalTo(cloudEventSimple.getId())));
+        assertThat("There should not any messages on other topics", otherEvents, is(empty()));
+
+        // Don't forget to detach the consumer from kafka!
+        MicoKafkaTestUtils.unsubscribeConsumer(consumer);
+    }
 }
