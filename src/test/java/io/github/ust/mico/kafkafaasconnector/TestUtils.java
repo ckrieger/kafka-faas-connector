@@ -37,7 +37,7 @@ public class TestUtils {
     public static Set<String> getRequiredTopics(KafkaConfig kafkaConfig) {
         Set<String> requiredTopics = new HashSet<>();
         requiredTopics.addAll(Arrays.asList(
-            kafkaConfig.getFilteredTestMessagesTopic(),
+            kafkaConfig.getTestMessageOutputTopic(),
             kafkaConfig.getDeadLetterTopic(),
             kafkaConfig.getInvalidMessageTopic(),
             kafkaConfig.getInputTopic(),

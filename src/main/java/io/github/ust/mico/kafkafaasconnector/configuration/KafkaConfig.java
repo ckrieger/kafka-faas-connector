@@ -65,7 +65,6 @@ public class KafkaConfig {
     @NotBlank
     private String deadLetterTopic;
 
-
     @NotBlank
-    private String filteredTestMessagesTopic;
+    private String testMessageOutputTopic;
 }

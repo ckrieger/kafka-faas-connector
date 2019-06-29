@@ -19,9 +19,7 @@
 
 package io.github.ust.mico.kafkafaasconnector;
 
-import java.time.ZonedDateTime;
 import java.util.*;
-import java.util.concurrent.ExecutionException;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -31,11 +29,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -240,7 +236,7 @@ public class MessageListenerTests {
         cloudEventSimple.setFilterOutBeforeTopic(testFilterTopic);
         cloudEventSimple.setIsTestMessage(true);
 
-        assertTrue("The message should be filtered out", cloudEventSimple.isFilterOutNecessary(testFilterTopic));
+        assertTrue("The message should be filtered out", messageListener.isTestMessageCompleted(cloudEventSimple,testFilterTopic));
     }
 
     /**
@@ -252,7 +248,7 @@ public class MessageListenerTests {
         String testFilterTopic = "TestFilterTopic";
         cloudEventSimple.setFilterOutBeforeTopic(testFilterTopic);
 
-        assertFalse("The message not should be filtered out, because it is not a test message", cloudEventSimple.isFilterOutNecessary(testFilterTopic));
+        assertFalse("The message not should be filtered out, because it is not a test message", messageListener.isTestMessageCompleted(cloudEventSimple,testFilterTopic));
     }
 
     /**
@@ -265,7 +261,7 @@ public class MessageListenerTests {
         cloudEventSimple.setFilterOutBeforeTopic(testFilterTopic);
         cloudEventSimple.setIsTestMessage(true);
 
-        assertFalse("The message not should be filtered out, because it has not reached the filter out topic", cloudEventSimple.isFilterOutNecessary(testFilterTopic + "Difference"));
+        assertFalse("The message not should be filtered out, because it has not reached the filter out topic", messageListener.isTestMessageCompleted(cloudEventSimple,testFilterTopic + "Difference"));
     }
 
     /**
@@ -296,7 +292,7 @@ public class MessageListenerTests {
     public void testFilterTestMessages() {
         EmbeddedKafkaBroker embeddedKafka = broker.getEmbeddedKafka();
         Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = MicoKafkaTestUtils.getKafkaConsumer(embeddedKafka);
-        embeddedKafka.consumeFromEmbeddedTopics(consumer, kafkaConfig.getFilteredTestMessagesTopic(), kafkaConfig.getOutputTopic());
+        embeddedKafka.consumeFromEmbeddedTopics(consumer, kafkaConfig.getTestMessageOutputTopic(), kafkaConfig.getOutputTopic());
         KafkaTemplate<String, MicoCloudEventImpl<JsonNode>> template = MicoKafkaTestUtils.getKafkaProducer(embeddedKafka);
 
         MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
@@ -304,7 +300,7 @@ public class MessageListenerTests {
         cloudEventSimple.setFilterOutBeforeTopic(kafkaConfig.getOutputTopic());
         template.send(kafkaConfig.getInputTopic(), "0", cloudEventSimple);
 
-        ConsumerRecord<String, MicoCloudEventImpl<JsonNode>> eventFilteredTestMessageTopic = KafkaTestUtils.getSingleRecord(consumer, kafkaConfig.getFilteredTestMessagesTopic(), 1000);
+        ConsumerRecord<String, MicoCloudEventImpl<JsonNode>> eventFilteredTestMessageTopic = KafkaTestUtils.getSingleRecord(consumer, kafkaConfig.getTestMessageOutputTopic(), 1000);
         ArrayList<ConsumerRecord<String, MicoCloudEventImpl<JsonNode>>> otherEvents = new ArrayList<>();
         KafkaTestUtils.getRecords(consumer, 1000).forEach(otherEvents::add);
         assertThat("The event should be on the filtered test topc", eventFilteredTestMessageTopic, is(notNullValue()));

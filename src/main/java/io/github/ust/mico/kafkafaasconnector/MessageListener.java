@@ -40,7 +40,6 @@ import java.net.URL;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 @Slf4j
 @Component
@@ -199,12 +198,12 @@ public class MessageListener {
     private void sendCloudEvent(MicoCloudEventImpl<JsonNode> cloudEvent, String topic) {
         cloudEvent = this.updateRouteHistoryWithTopic(cloudEvent, topic);
         // TODO commit logic/transactions
-        if (!cloudEvent.isFilterOutNecessary(topic)){
+        if (!isTestMessageCompleted(cloudEvent,topic)){
             log.debug("Is not necessary to filter the message. Is test message '{}', filterOutBeforeTopic: '{}', targetTopic: '{}'", cloudEvent.isTestMessage(), cloudEvent.getFilterOutBeforeTopic(), topic);
             kafkaTemplate.send(topic, cloudEvent);
         }else {
-            log.info("Filter out test message: '{}' to topic: '{}'", cloudEvent, kafkaConfig.getFilteredTestMessagesTopic());
-            kafkaTemplate.send(kafkaConfig.getFilteredTestMessagesTopic(),cloudEvent);
+            log.info("Filter out test message: '{}' to topic: '{}'", cloudEvent, kafkaConfig.getTestMessageOutputTopic());
+            kafkaTemplate.send(kafkaConfig.getTestMessageOutputTopic(),cloudEvent);
         }
     }
 
@@ -249,5 +248,16 @@ public class MessageListener {
             .setFaasFunctionName(openFaaSConfig.getFunctionName())
             .setFaasGateway(openFaaSConfig.getGateway())
             .setReportingComponentName("TODO"); //TODO set this via a env variable and use it here
+    }
+
+    /**
+     * This method checks if it is necessary to filter it out. This only works
+     * for testMessages. It returns {@code true} if {@code isTestMessage} is
+     * true and the param {@code topic} equals {@code filterOutBeforeTopic}.
+     * @param topic The target topic or destination of this message.
+     * @return isTestMessage && topic.equals(filterOutBeforeTopic)
+     */
+    public boolean isTestMessageCompleted(MicoCloudEventImpl<JsonNode> cloudEvent, String topic) {
+        return cloudEvent.isTestMessage().isPresent() && cloudEvent.isTestMessage().get() && cloudEvent.getFilterOutBeforeTopic().isPresent() && topic.equals(cloudEvent.getFilterOutBeforeTopic().get());
     }
 }
