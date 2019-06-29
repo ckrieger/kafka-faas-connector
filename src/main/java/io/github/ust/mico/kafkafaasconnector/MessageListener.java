@@ -180,7 +180,12 @@ public class MessageListener {
     private void sendCloudEvent(MicoCloudEventImpl<JsonNode> cloudEvent, String topic) {
         cloudEvent = this.updateRouteHistoryWithTopic(cloudEvent, topic);
         // TODO commit logic/transactions
-        kafkaTemplate.send(topic, cloudEvent);
+        if (!cloudEvent.isFilterOutNecessary(topic)){
+            kafkaTemplate.send(topic, cloudEvent);
+        }else {
+            log.info("Filter out test message: '{]'", cloudEvent);
+            kafkaTemplate.send(kafkaConfig.getFilteredTestMessagesTopic(),cloudEvent);
+        }
     }
 
     private void sendErrorMessageToInvalidMessageTopic(String errorMessage, MicoCloudEventImpl<JsonNode> cloudEvent) {

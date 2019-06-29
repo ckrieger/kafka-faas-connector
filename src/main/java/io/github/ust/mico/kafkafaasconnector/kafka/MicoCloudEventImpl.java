@@ -2,6 +2,7 @@ package io.github.ust.mico.kafkafaasconnector.kafka;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonAnySetter;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.cloudevents.CloudEvent;
 import io.cloudevents.Extension;
@@ -110,6 +111,10 @@ public class MicoCloudEventImpl<T> implements CloudEvent<T> {
     public MicoCloudEventImpl<T> addExtension(Extension extension) {
         extensions.add(extension);
         return this;
+    }
+
+    public boolean isFilterOutNecessary(String topic) {
+        return isTestMessage && topic.equals(filterOutBeforeTopic);
     }
 
     public Optional<ZonedDateTime> getTime() {
