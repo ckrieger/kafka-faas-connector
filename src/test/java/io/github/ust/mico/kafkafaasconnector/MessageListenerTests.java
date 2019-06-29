@@ -1,9 +1,8 @@
 package io.github.ust.mico.kafkafaasconnector;
 
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.ExecutionException;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -13,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -53,21 +53,64 @@ public class MessageListenerTests {
     @Autowired
     private KafkaConfig kafkaConfig;
 
+    private static boolean kafkaTopicInitDone = false;
+
     // https://docs.spring.io/spring-kafka/docs/2.2.6.RELEASE/reference/html/#kafka-testing-junit4-class-rule
     @ClassRule
-    public static EmbeddedKafkaRule broker = new EmbeddedKafkaRule(1, false,
-        TestConstants.INPUT_TOPIC, TestConstants.OUTPUT_TOPIC,
-        TestConstants.DEAD_LETTER_TOPIC, TestConstants.INVALID_MESSAGE_TOPIC,
-        TestConstants.ROUTING_TOPIC_1, TestConstants.ROUTING_TOPIC_2,
-        TestConstants.ROUTING_TOPIC_3, TestConstants.ROUTING_TOPIC_4);
+    public static EmbeddedKafkaRule broker = new EmbeddedKafkaRule(1, false);
 
     @Autowired
     MessageListener messageListener;
 
     @PostConstruct
-    public void postConstruct(){
+    public void before(){
+        //We need to add them outside of the rule because the autowired kakfaConfig is not accessible from the static rule
+        //We can not use @BeforeClass which is only executed once because it has to be static and we do not have access to the autowired kakfaConfig
+
+        Set<String> requiredTopics = getRequiredTopics();
         EmbeddedKafkaBroker embeddedKafka = broker.getEmbeddedKafka();
-        embeddedKafka.addTopics(kafkaConfig.getFilteredTestMessagesTopic());
+        Set<String> alreadySetTopics = requestActuallySetTopics(embeddedKafka);
+        requiredTopics.removeAll(alreadySetTopics);
+        requiredTopics.forEach(topic -> embeddedKafka.addTopics(topic));
+    }
+
+    /**
+     * This method requests the topics which are acctually used by the broker.
+     * It is nesseary because embeddedKafka.getTopics() does not contain a recent topic list
+     * @param embeddedKafka
+     * @return
+     */
+    private Set<String> requestActuallySetTopics(EmbeddedKafkaBroker embeddedKafka) {
+        Set<String> topics = new HashSet<>();
+        embeddedKafka.doWithAdmin(admin -> {
+            try {
+                topics.addAll(admin.listTopics().names().get());
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            } catch (ExecutionException e) {
+                e.printStackTrace();
+            }
+        });
+        return topics;
+    }
+
+    /**
+     * Contains all topics which are necessary for the tests
+     * @return
+     */
+    private Set<String> getRequiredTopics() {
+        Set<String> requiredTopics = new HashSet<>();
+        requiredTopics.addAll(Arrays.asList(
+            kafkaConfig.getFilteredTestMessagesTopic(),
+            kafkaConfig.getDeadLetterTopic(),
+            kafkaConfig.getInvalidMessageTopic(),
+            kafkaConfig.getInputTopic(),
+            kafkaConfig.getOutputTopic(),
+            TestConstants.ROUTING_TOPIC_1,
+            TestConstants.ROUTING_TOPIC_2,
+            TestConstants.ROUTING_TOPIC_3,
+            TestConstants.ROUTING_TOPIC_4));
+        return requiredTopics;
     }
 
     @Test
@@ -111,7 +154,7 @@ public class MessageListenerTests {
 
         // generate and send cloud event message
         MicoCloudEventImpl<JsonNode> cloudEvent = TestConstants.setPastExpiryDate(TestConstants.basicCloudEvent(eventId));
-        template.send(TestConstants.INPUT_TOPIC, "0", cloudEvent);
+        template.send(kafkaConfig.getInputTopic(), "0", cloudEvent);
 
         // consume at least the message send by this unit test
         ConsumerRecords<String, MicoCloudEventImpl<JsonNode>> records = KafkaTestUtils.getRecords(consumer, 100);
@@ -121,8 +164,8 @@ public class MessageListenerTests {
         // test for expired cloud event message on topics other then the input topic
         java.util.function.Consumer<? super ConsumerRecord<String, MicoCloudEventImpl<JsonNode>>> predicate = record -> {
             if (record.value().getId().equals(eventId)) {
-                if (!record.topic().equals(TestConstants.INPUT_TOPIC)) {
-                    assertNotEquals("The expired message was wrongly processed and sent to the output channel!", record.topic(), TestConstants.OUTPUT_TOPIC);
+                if (!record.topic().equals(kafkaConfig.getInputTopic())) {
+                    assertNotEquals("The expired message was wrongly processed and sent to the output channel!", record.topic(), kafkaConfig.getOutputTopic());
                 }
             }
         };
@@ -156,19 +199,19 @@ public class MessageListenerTests {
                 TestConstants.basicCloudEvent(eventIdMultiStep),
                 TestConstants.ROUTING_TOPIC_1
             ),
-            TestConstants.INPUT_TOPIC
+            kafkaConfig.getInputTopic()
         );
         // test that messages with multiple destinations don't share the routing history (mutable list)
         ArrayList<String> destinations = new ArrayList<>();
-        destinations.add(TestConstants.OUTPUT_TOPIC);
+        destinations.add(kafkaConfig.getOutputTopic());
         destinations.add(TestConstants.ROUTING_TOPIC_1);
         MicoCloudEventImpl<JsonNode> cloudEventMultiDest = TestConstants.addMultipleTopicRoutingSteps(
             TestConstants.basicCloudEvent(eventIdMultiDest),
             destinations
         );
-        template.send(TestConstants.INPUT_TOPIC, "0", cloudEventSimple);
-        template.send(TestConstants.INPUT_TOPIC, "0", cloudEventMultiStep);
-        template.send(TestConstants.INPUT_TOPIC, "0", cloudEventMultiDest);
+        template.send(kafkaConfig.getInputTopic(), "0", cloudEventSimple);
+        template.send(kafkaConfig.getInputTopic(), "0", cloudEventMultiStep);
+        template.send(kafkaConfig.getInputTopic(), "0", cloudEventMultiDest);
 
         ArrayList<ConsumerRecord<String, MicoCloudEventImpl<JsonNode>>> events = new ArrayList<>();
         // consume all message send during this unit test
@@ -181,13 +224,13 @@ public class MessageListenerTests {
         // test for expired cloud event message on topics other then the input topic
         java.util.function.Consumer<? super ConsumerRecord<String, MicoCloudEventImpl<JsonNode>>> predicate = record -> {
             if (record.value().getId().equals("eventId")) {
-                if (!record.topic().equals(TestConstants.INPUT_TOPIC)) {
-                    assertNotEquals("The expired message was wrongly processed and sent to the output channel!", record.topic(), TestConstants.OUTPUT_TOPIC);
+                if (!record.topic().equals(kafkaConfig.getInputTopic())) {
+                    assertNotEquals("The expired message was wrongly processed and sent to the output channel!", record.topic(), kafkaConfig.getOutputTopic());
                 }
             }
         };
         events.forEach(record -> {
-            if (!record.topic().equals(TestConstants.INPUT_TOPIC)) {
+            if (!record.topic().equals(kafkaConfig.getInputTopic())) {
                 List<RouteHistory> history = record.value().getRoute().orElse(new ArrayList<>());
                 assertTrue("Route history was not set/empty.", history.size() > 0);
                 RouteHistory lastStep = history.get(history.size() - 1);
@@ -198,7 +241,7 @@ public class MessageListenerTests {
                     assertTrue("Route history is missing a step.", history.size() > 1);
                     RouteHistory firstStep = history.get(0);
                     assertEquals("Route history step has wrong type (should be 'topic')", "topic", firstStep.getType().orElse(""));
-                    assertEquals(firstStep.getId().orElse(""), TestConstants.INPUT_TOPIC);
+                    assertEquals(firstStep.getId().orElse(""), kafkaConfig.getInputTopic());
                 }
             }
         });
