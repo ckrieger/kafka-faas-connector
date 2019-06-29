@@ -258,6 +258,6 @@ public class MessageListener {
      * @return isTestMessage && topic.equals(filterOutBeforeTopic)
      */
     public boolean isTestMessageCompleted(MicoCloudEventImpl<JsonNode> cloudEvent, String topic) {
-        return cloudEvent.isTestMessage().isPresent() && cloudEvent.isTestMessage().get() && cloudEvent.getFilterOutBeforeTopic().isPresent() && topic.equals(cloudEvent.getFilterOutBeforeTopic().get());
+        return cloudEvent.isTestMessage().orElse(false) && topic.equals(cloudEvent.getFilterOutBeforeTopic().orElse(null));
     }
 }

@@ -82,9 +82,9 @@ public class MessageListenerTests {
         //We need to add them outside of the rule because the autowired kakfaConfig is not accessible from the static rule
         //We can not use @BeforeClass which is only executed once because it has to be static and we do not have access to the autowired kakfaConfig
 
-        Set<String> requiredTopics = TestUtils.getRequiredTopics(kafkaConfig);
+        Set<String> requiredTopics = MicoKafkaTestUtils.getRequiredTopics(kafkaConfig);
         EmbeddedKafkaBroker embeddedKafka = broker.getEmbeddedKafka();
-        Set<String> alreadySetTopics = TestUtils.requestActuallySetTopics(embeddedKafka);
+        Set<String> alreadySetTopics = MicoKafkaTestUtils.requestActuallySetTopics(embeddedKafka);
         requiredTopics.removeAll(alreadySetTopics);
         requiredTopics.forEach(topic -> embeddedKafka.addTopics(topic));
     }
