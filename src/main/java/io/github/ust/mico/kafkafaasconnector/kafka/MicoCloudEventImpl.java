@@ -43,7 +43,7 @@ public class MicoCloudEventImpl<T> implements CloudEvent<T> {
     private String createFrom;
     private List<RouteHistory> route;
     private List<List<String>> routingSlip;
-    private boolean isTestMessage;
+    private Boolean isTestMessage;
     private String filterOutBeforeTopic;
     private ZonedDateTime expiryDate;
     private String sequenceId;

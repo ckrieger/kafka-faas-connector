@@ -181,9 +181,10 @@ public class MessageListener {
         cloudEvent = this.updateRouteHistoryWithTopic(cloudEvent, topic);
         // TODO commit logic/transactions
         if (!cloudEvent.isFilterOutNecessary(topic)){
+            log.info("Is not necessary to filter the message. Is test message '{}', filterOutBeforeTopic: '{}', targetTopic: '{}'", cloudEvent.isTestMessage(), cloudEvent.getFilterOutBeforeTopic(), topic);
             kafkaTemplate.send(topic, cloudEvent);
         }else {
-            log.info("Filter out test message: '{]'", cloudEvent);
+            log.info("Filter out test message: '{}'", cloudEvent);
             kafkaTemplate.send(kafkaConfig.getFilteredTestMessagesTopic(),cloudEvent);
         }
     }
