@@ -114,7 +114,7 @@ public class MicoCloudEventImpl<T> implements CloudEvent<T> {
     }
 
     public boolean isFilterOutNecessary(String topic) {
-        return isTestMessage && topic.equals(filterOutBeforeTopic);
+        return isTestMessage != null && isTestMessage && topic.equals(filterOutBeforeTopic);
     }
 
     public Optional<ZonedDateTime> getTime() {

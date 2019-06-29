@@ -42,7 +42,7 @@ public class TestConstants {
     // CloudEvents
 
     /**
-     * Build a basic cloud event wiht dummy entries and with the given id.
+     * Build a basic cloud event with dummy entries and with the given id.
      *
      * @param id the cloud event id to use
      * @return
@@ -63,6 +63,14 @@ public class TestConstants {
     }
 
     /**
+     * Build a basic cloud event with dummy entries and a random id.
+     *
+     */
+    public static MicoCloudEventImpl<JsonNode> basicCloudEventWithRandomId() {
+            return basicCloudEvent("").setRandomId();
+    }
+
+    /**
      * Mark the given cloud event as test message.
      *
      * @param message              the cloud event to mark as test message
@@ -70,7 +78,7 @@ public class TestConstants {
      * @return
      */
     public static MicoCloudEventImpl<JsonNode> markAsTestMessage(MicoCloudEventImpl<JsonNode> message, String filterOutBeforeTopic) {
-        return message.setTestMessage(true).setFilterOutBeforeTopic(filterOutBeforeTopic);
+        return message.setIsTestMessage(true).setFilterOutBeforeTopic(filterOutBeforeTopic);
     }
 
     /**

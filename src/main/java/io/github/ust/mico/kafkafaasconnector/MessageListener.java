@@ -184,7 +184,7 @@ public class MessageListener {
             log.info("Is not necessary to filter the message. Is test message '{}', filterOutBeforeTopic: '{}', targetTopic: '{}'", cloudEvent.isTestMessage(), cloudEvent.getFilterOutBeforeTopic(), topic);
             kafkaTemplate.send(topic, cloudEvent);
         }else {
-            log.info("Filter out test message: '{}'", cloudEvent);
+            log.info("Filter out test message: '{}' to topic: '{}'", cloudEvent, kafkaConfig.getFilteredTestMessagesTopic());
             kafkaTemplate.send(kafkaConfig.getFilteredTestMessagesTopic(),cloudEvent);
         }
     }
