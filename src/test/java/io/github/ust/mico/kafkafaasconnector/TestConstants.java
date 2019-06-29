@@ -83,12 +83,9 @@ public class TestConstants {
      * @return
      */
     public static MicoCloudEventImpl<JsonNode> addSingleTopicRoutingStep(MicoCloudEventImpl<JsonNode> message, String topic) {
-        Optional<List<ArrayList<String>>> routingSlip = message.getRoutingSlip();
-        List<ArrayList<String>> newRoutingSlip = routingSlip.orElse(new ArrayList<>());
-        ArrayList<String> destinations = new ArrayList();
+        ArrayList<String> destinations = new ArrayList<>();
         destinations.add(topic);
-        newRoutingSlip.add(destinations);
-        return message.setRoutingSlip(newRoutingSlip);
+        return addMultipleTopicRoutingSteps(message, destinations);
     }
 
     /**
@@ -100,9 +97,9 @@ public class TestConstants {
      * @param destinations
      * @return
      */
-    public static MicoCloudEventImpl<JsonNode> addMultipleTopicRoutingSteps(MicoCloudEventImpl<JsonNode> message, ArrayList<String> destinations) {
-        Optional<List<ArrayList<String>>> routingSlip = message.getRoutingSlip();
-        List<ArrayList<String>> newRoutingSlip = routingSlip.orElse(new ArrayList<>());
+    public static MicoCloudEventImpl<JsonNode> addMultipleTopicRoutingSteps(MicoCloudEventImpl<JsonNode> message, List<String> destinations) {
+        Optional<List<List<String>>> routingSlip = message.getRoutingSlip();
+        List<List<String>> newRoutingSlip = routingSlip.orElse(new ArrayList<>());
         newRoutingSlip.add(destinations);
         return message.setRoutingSlip(newRoutingSlip);
     }
@@ -138,14 +135,17 @@ public class TestConstants {
      */
     public static MicoCloudEventImpl<JsonNode> setSequenceAttributes(MicoCloudEventImpl<JsonNode> message, String sequenceId, int sequenceNumber, int sequenceSize) {
         return message.setSequenceId(sequenceId)
-            .setSequenceSize(String.valueOf(sequenceSize))
-            .setSequenceNumber(String.valueOf(sequenceNumber));
+            .setSequenceSize(sequenceSize)
+            .setSequenceNumber(sequenceNumber);
     }
 
     // Kafka
 
     /**
      * Get a kafka consumer for testing with an embedded broker.
+     *
+     * The consumer needs to be unsubscribed after the test is finished.
+     * If not other tests using the same broker may fail to get messages!
      *
      * @param embeddedKafka the embedded kafka broker
      * @return

@@ -40,16 +40,47 @@ public class MicoCloudEventImpl<T> implements CloudEvent<T> {
 
     private String correlationId;
     private String createFrom;
-    private String route;
-    private List<ArrayList<String>> routingSlip;
+    private List<RouteHistory> route;
+    private List<List<String>> routingSlip;
     private boolean isTestMessage;
     private String filterOutBeforeTopic;
     private ZonedDateTime expiryDate;
     private String sequenceId;
-    private String sequenceNumber;
-    private String sequenceSize;
+    private Integer sequenceNumber;
+    private Integer sequenceSize;
     private String returnTopic;
     private String dataRef;
+
+    /**
+     * Copy constructor providing a shallow copy of the cloud event.
+     *
+     * @param cloudEvent the event to copy
+     */
+    public MicoCloudEventImpl(MicoCloudEventImpl<T> cloudEvent) {
+        this(
+            cloudEvent.id,
+            cloudEvent.source,
+            cloudEvent.type,
+            cloudEvent.specVersion,
+            cloudEvent.time,
+            cloudEvent.schemaURL,
+            cloudEvent.contentType,
+            cloudEvent.data,
+            cloudEvent.extensions,
+            cloudEvent.correlationId,
+            cloudEvent.createFrom,
+            cloudEvent.route,
+            cloudEvent.routingSlip,
+            cloudEvent.isTestMessage,
+            cloudEvent.filterOutBeforeTopic,
+            cloudEvent.expiryDate,
+            cloudEvent.sequenceId,
+            cloudEvent.sequenceNumber,
+            cloudEvent.sequenceSize,
+            cloudEvent.returnTopic,
+            cloudEvent.dataRef
+        );
+    }
 
     public MicoCloudEventImpl<T> setRandomId() {
         id = UUID.randomUUID().toString();
@@ -109,11 +140,11 @@ public class MicoCloudEventImpl<T> implements CloudEvent<T> {
         return Optional.ofNullable(createFrom);
     }
 
-    public Optional<String> getRoute() {
+    public Optional<List<RouteHistory>> getRoute() {
         return Optional.ofNullable(route);
     }
 
-    public Optional<List<ArrayList<String>>> getRoutingSlip() {
+    public Optional<List<List<String>>> getRoutingSlip() {
         return Optional.ofNullable(routingSlip);
     }
 
@@ -133,11 +164,11 @@ public class MicoCloudEventImpl<T> implements CloudEvent<T> {
         return Optional.ofNullable(sequenceId);
     }
 
-    public Optional<String> getSequenceNumber() {
+    public Optional<Integer> getSequenceNumber() {
         return Optional.ofNullable(sequenceNumber);
     }
 
-    public Optional<String> getSequenceSize() {
+    public Optional<Integer> getSequenceSize() {
         return Optional.ofNullable(sequenceSize);
     }
 

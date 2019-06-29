@@ -7,6 +7,7 @@ import io.github.ust.mico.kafkafaasconnector.configuration.KafkaConfig;
 import io.github.ust.mico.kafkafaasconnector.configuration.OpenFaaSConfig;
 import io.github.ust.mico.kafkafaasconnector.kafka.ErrorReportMessage;
 import io.github.ust.mico.kafkafaasconnector.kafka.MicoCloudEventImpl;
+import io.github.ust.mico.kafkafaasconnector.kafka.RouteHistory;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -95,8 +96,10 @@ public class MessageListener {
      * @return the updated cloud event
      */
     public MicoCloudEventImpl<JsonNode> updateRouteHistory(MicoCloudEventImpl<JsonNode> cloudEvent, String id, String type) {
-        // TODO update route history here
-        return cloudEvent;
+        RouteHistory routingStep = new RouteHistory(type, id, ZonedDateTime.now());
+        List<RouteHistory> history = cloudEvent.getRoute().map(route -> new ArrayList<>(route)).orElse(new ArrayList<>());
+        history.add(routingStep);
+        return new MicoCloudEventImpl<JsonNode>(cloudEvent).setRoute(history);
     }
 
     /**
@@ -152,22 +155,18 @@ public class MessageListener {
      * @param cloudEvent the cloud event to send
      */
     public void sendCloudEvent(MicoCloudEventImpl<JsonNode> cloudEvent) {
-        try {
-            Optional<List<ArrayList<String>>> routingSlip = cloudEvent.getRoutingSlip();
-            List<ArrayList<String>> newRoutingSlip = routingSlip.orElse(new ArrayList<>());
-            ArrayList<String> destinations = newRoutingSlip.get(newRoutingSlip.size() - 1);
-            newRoutingSlip.remove(newRoutingSlip.size() - 1);
+        List<List<String>> routingSlip = cloudEvent.getRoutingSlip().orElse(new ArrayList<>());
+        if (routingSlip.size() > 0) {
+            List<String> destinations = routingSlip.get(routingSlip.size() - 1);
+            routingSlip.remove(routingSlip.size() - 1);
             // Check if valid topic?
             for (String topic : destinations) {
                 this.sendCloudEvent(cloudEvent, topic);
             }
-        } catch (NullPointerException e) {
-            log.error("Failed to find a routing slip in the CloudEvent '{}'.", cloudEvent);
-        } catch (IndexOutOfBoundsException e) {
-            log.error("There is no next topic on the routing slip.");
+        } else {
+            // default case:
+            this.sendCloudEvent(cloudEvent, this.kafkaConfig.getOutputTopic());
         }
-        // default case:
-        this.sendCloudEvent(cloudEvent, this.kafkaConfig.getOutputTopic());
     }
 
     /**
