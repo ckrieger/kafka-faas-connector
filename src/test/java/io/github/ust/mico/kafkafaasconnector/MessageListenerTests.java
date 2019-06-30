@@ -345,5 +345,45 @@ public class MessageListenerTests {
         MicoKafkaTestHelper.unsubscribeConsumer(consumer);
     }
 
+    /**
+     * Tests if a missing correlation header is set correctly
+     */
+    @Test
+    public void testMissingCorrelationId() {
+        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = micoKafkaTestHelper.getKafkaConsumer(kafkaConfig.getOutputTopic());
+
+        MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
+        final String messageId = cloudEventSimple.getId();
+
+        ConsumerRecord<String, MicoCloudEventImpl<JsonNode>> eventWithCorrelationId = micoKafkaTestHelper.exchangeMessage(consumer, kafkaConfig.getOutputTopic(), cloudEventSimple);
+        MicoCloudEventImpl<JsonNode> cloudEvent = eventWithCorrelationId.value();
+
+        assertThat("The correlationId should equal the id of the original message", cloudEvent.getCorrelationId().orElse(""), is(messageId));
+
+        // Don't forget to detach the consumer from kafka!
+        MicoKafkaTestHelper.unsubscribeConsumer(consumer);
+    }
+
+    /**
+     * Tests if a missing correlation is unchanged of set
+     */
+    @Test
+    public void testCorrelationIdUnChanged() {
+        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = micoKafkaTestHelper.getKafkaConsumer(kafkaConfig.getOutputTopic());
+
+        MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
+        String testCorrelationId = "testCorrelationId";
+        cloudEventSimple.setCorrelationId(testCorrelationId);
+
+        ConsumerRecord<String, MicoCloudEventImpl<JsonNode>> eventWithCorrelationId = micoKafkaTestHelper.exchangeMessage(consumer, kafkaConfig.getOutputTopic(), cloudEventSimple);
+        MicoCloudEventImpl<JsonNode> cloudEvent = eventWithCorrelationId.value();
+
+        assertThat("The correlationId should be unchanged", cloudEvent.getCorrelationId().orElse(""), is(testCorrelationId));
+
+        // Don't forget to detach the consumer from kafka!
+        MicoKafkaTestHelper.unsubscribeConsumer(consumer);
+    }
+
+
 
 }
