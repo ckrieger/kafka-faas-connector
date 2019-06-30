@@ -70,6 +70,7 @@ public class MicoCloudEventImpl<T> implements CloudEvent<T> {
     private Integer sequenceSize;
     private String returnTopic;
     private String dataRef;
+    private String subject;
 
     /**
      * Copy constructor providing a shallow copy of the cloud event.
@@ -98,7 +99,8 @@ public class MicoCloudEventImpl<T> implements CloudEvent<T> {
             cloudEvent.sequenceNumber,
             cloudEvent.sequenceSize,
             cloudEvent.returnTopic,
-            cloudEvent.dataRef
+            cloudEvent.dataRef,
+            cloudEvent.subject
         );
     }
 
@@ -198,5 +200,9 @@ public class MicoCloudEventImpl<T> implements CloudEvent<T> {
 
     public Optional<String> getDataRef() {
         return Optional.ofNullable(dataRef);
+    }
+
+    public Optional<String> getSubject() {
+        return Optional.ofNullable(subject);
     }
 }

@@ -32,6 +32,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
@@ -198,6 +199,7 @@ public class MessageListener {
     private void sendCloudEvent(MicoCloudEventImpl<JsonNode> cloudEvent, String topic) {
         cloudEvent = this.updateRouteHistoryWithTopic(cloudEvent, topic);
         // TODO commit logic/transactions
+        setMissingHeaderFields(cloudEvent);
         if (!isTestMessageCompleted(cloudEvent,topic)){
             log.debug("Is not necessary to filter the message. Is test message '{}', filterOutBeforeTopic: '{}', targetTopic: '{}'", cloudEvent.isTestMessage(), cloudEvent.getFilterOutBeforeTopic(), topic);
             kafkaTemplate.send(topic, cloudEvent);
@@ -259,5 +261,20 @@ public class MessageListener {
      */
     public boolean isTestMessageCompleted(MicoCloudEventImpl<JsonNode> cloudEvent, String topic) {
         return cloudEvent.isTestMessage().orElse(false) && topic.equals(cloudEvent.getFilterOutBeforeTopic().orElse(null));
+    }
+
+    /**
+     * Sets the time and the Id field of a CloudEvent message if missing
+     * @param cloudEvent
+     */
+    public void setMissingHeaderFields(MicoCloudEventImpl<JsonNode> cloudEvent){
+        if(StringUtils.isEmpty(cloudEvent.getId())){
+            cloudEvent.setRandomId();
+            log.debug("Added missing id '{}' to cloud event", cloudEvent.getId());
+        }
+        if(!cloudEvent.getTime().isPresent()){
+            cloudEvent.setTime(ZonedDateTime.now());
+            log.debug("Added missing time '{}' to cloud event", cloudEvent.getTime().orElse(null));
+        }
     }
 }
