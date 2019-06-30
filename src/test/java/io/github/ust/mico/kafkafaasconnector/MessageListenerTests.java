@@ -71,7 +71,9 @@ public class MessageListenerTests {
     @Autowired
     private KafkaConfig kafkaConfig;
 
-    private static boolean kafkaTopicInitDone = false;
+    EmbeddedKafkaBroker embeddedKafka = broker.getEmbeddedKafka();
+
+    KafkaTemplate<String, MicoCloudEventImpl<JsonNode>> template = MicoKafkaTestUtils.getKafkaProducer(embeddedKafka);
 
     // https://docs.spring.io/spring-kafka/docs/2.2.6.RELEASE/reference/html/#kafka-testing-junit4-class-rule
     @ClassRule
@@ -86,7 +88,6 @@ public class MessageListenerTests {
         //We can not use @BeforeClass which is only executed once because it has to be static and we do not have access to the autowired kakfaConfig
 
         Set<String> requiredTopics = MicoKafkaTestUtils.getRequiredTopics(kafkaConfig);
-        EmbeddedKafkaBroker embeddedKafka = broker.getEmbeddedKafka();
         Set<String> alreadySetTopics = MicoKafkaTestUtils.requestActuallySetTopics(embeddedKafka);
         requiredTopics.removeAll(alreadySetTopics);
         requiredTopics.forEach(topic -> embeddedKafka.addTopics(topic));
@@ -123,12 +124,8 @@ public class MessageListenerTests {
      */
     @Test
     public void testExpiredMessage() {
-        EmbeddedKafkaBroker embeddedKafka = broker.getEmbeddedKafka();
         Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = MicoKafkaTestUtils.getKafkaConsumer(embeddedKafka);
         embeddedKafka.consumeFromAllEmbeddedTopics(consumer);
-
-        KafkaTemplate<String, MicoCloudEventImpl<JsonNode>> template = MicoKafkaTestUtils.getKafkaProducer(embeddedKafka);
-
         String eventId = "CloudEventExpired";
 
         // generate and send cloud event message
@@ -160,11 +157,8 @@ public class MessageListenerTests {
      */
     @Test
     public void testRouteHistory() {
-        EmbeddedKafkaBroker embeddedKafka = broker.getEmbeddedKafka();
         Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = MicoKafkaTestUtils.getKafkaConsumer(embeddedKafka);
         embeddedKafka.consumeFromAllEmbeddedTopics(consumer);
-
-        KafkaTemplate<String, MicoCloudEventImpl<JsonNode>> template = MicoKafkaTestUtils.getKafkaProducer(embeddedKafka);
 
         String eventIdSimple = "routeHistorySimple";
         String eventIdMultiStep = "routeHistoryMultiStep";
@@ -272,10 +266,8 @@ public class MessageListenerTests {
      */
     @Test
     public void testNotFilterNormalMessages() {
-        EmbeddedKafkaBroker embeddedKafka = broker.getEmbeddedKafka();
         Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = MicoKafkaTestUtils.getKafkaConsumer(embeddedKafka);
         embeddedKafka.consumeFromAnEmbeddedTopic(consumer, kafkaConfig.getOutputTopic());
-        KafkaTemplate<String, MicoCloudEventImpl<JsonNode>> template = MicoKafkaTestUtils.getKafkaProducer(embeddedKafka);
 
         MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
         template.send(kafkaConfig.getInputTopic(), "0", cloudEventSimple);
@@ -293,10 +285,8 @@ public class MessageListenerTests {
      */
     @Test
     public void testFilterTestMessages() {
-        EmbeddedKafkaBroker embeddedKafka = broker.getEmbeddedKafka();
         Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = MicoKafkaTestUtils.getKafkaConsumer(embeddedKafka);
         embeddedKafka.consumeFromEmbeddedTopics(consumer, kafkaConfig.getTestMessageOutputTopic(), kafkaConfig.getOutputTopic());
-        KafkaTemplate<String, MicoCloudEventImpl<JsonNode>> template = MicoKafkaTestUtils.getKafkaProducer(embeddedKafka);
 
         MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
         cloudEventSimple.setIsTestMessage(true);
@@ -319,10 +309,8 @@ public class MessageListenerTests {
      */
     @Test
     public void addMissingHeaderField() {
-        EmbeddedKafkaBroker embeddedKafka = broker.getEmbeddedKafka();
         Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = MicoKafkaTestUtils.getKafkaConsumer(embeddedKafka);
         embeddedKafka.consumeFromEmbeddedTopics(consumer, kafkaConfig.getOutputTopic());
-        KafkaTemplate<String, MicoCloudEventImpl<JsonNode>> template = MicoKafkaTestUtils.getKafkaProducer(embeddedKafka);
 
         MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEvent("");
         cloudEventSimple.setTime(null);
@@ -333,8 +321,9 @@ public class MessageListenerTests {
         assertThat("The event should have an id", cloudEvent.getId(), is(not(isEmptyOrNullString())));
         assertThat("The event should have a time", cloudEvent.getTime().orElse(null), is(notNullValue()));
         assertThat(cloudEvent.getTime().get(), ZonedDateTimeMatchers.within(2, ChronoUnit.SECONDS, ZonedDateTime.now().minusSeconds(1)));
-        
+
         // Don't forget to detach the consumer from kafka!
         MicoKafkaTestUtils.unsubscribeConsumer(consumer);
     }
+
 }
