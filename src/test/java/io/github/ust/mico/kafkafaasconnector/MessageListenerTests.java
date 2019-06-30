@@ -19,6 +19,8 @@
 
 package io.github.ust.mico.kafkafaasconnector;
 
+import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -29,6 +31,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.exparity.hamcrest.date.DateMatchers;
+import org.exparity.hamcrest.date.ZonedDateTimeMatchers;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -51,10 +55,9 @@ import io.github.ust.mico.kafkafaasconnector.kafka.RouteHistory;
 import javax.annotation.PostConstruct;
 
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.Matchers.*;
 import static org.hamcrest.core.IsNull.notNullValue;
 import static org.junit.Assert.*;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.empty;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
@@ -307,6 +310,30 @@ public class MessageListenerTests {
         assertThat("The ids should be the same", eventFilteredTestMessageTopic.value().getId(), is(equalTo(cloudEventSimple.getId())));
         assertThat("There should not any messages on other topics", otherEvents, is(empty()));
 
+        // Don't forget to detach the consumer from kafka!
+        MicoKafkaTestUtils.unsubscribeConsumer(consumer);
+    }
+
+    /**
+     * Tests if the fields Id and time are set if missing
+     */
+    @Test
+    public void addMissingHeaderField() {
+        EmbeddedKafkaBroker embeddedKafka = broker.getEmbeddedKafka();
+        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = MicoKafkaTestUtils.getKafkaConsumer(embeddedKafka);
+        embeddedKafka.consumeFromEmbeddedTopics(consumer, kafkaConfig.getOutputTopic());
+        KafkaTemplate<String, MicoCloudEventImpl<JsonNode>> template = MicoKafkaTestUtils.getKafkaProducer(embeddedKafka);
+
+        MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEvent("");
+        cloudEventSimple.setTime(null);
+        template.send(kafkaConfig.getInputTopic(), "0", cloudEventSimple);
+
+        ConsumerRecord<String, MicoCloudEventImpl<JsonNode>> eventWithTimeAndId = KafkaTestUtils.getSingleRecord(consumer, kafkaConfig.getOutputTopic(), 1000);
+        MicoCloudEventImpl<JsonNode> cloudEvent = eventWithTimeAndId.value();
+        assertThat("The event should have an id", cloudEvent.getId(), is(not(isEmptyOrNullString())));
+        assertThat("The event should have a time", cloudEvent.getTime().orElse(null), is(notNullValue()));
+        assertThat(cloudEvent.getTime().get(), ZonedDateTimeMatchers.within(2, ChronoUnit.SECONDS, ZonedDateTime.now().minusSeconds(1)));
+        
         // Don't forget to detach the consumer from kafka!
         MicoKafkaTestUtils.unsubscribeConsumer(consumer);
     }
