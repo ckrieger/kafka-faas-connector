@@ -24,7 +24,33 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
-public class MicoKafkaTestUtils {
+import static io.github.ust.mico.kafkafaasconnector.TestConstants.DEFAULT_KAFKA_POLL_TIMEOUT;
+
+public class MicoKafkaTestHelper {
+
+    /**
+     * Unsubscribes and closes the consumer. Needed after each test.
+     * @param consumer
+     */
+    public static void unsubscribeConsumer(Consumer consumer){
+        consumer.unsubscribe();
+        consumer.close();
+    }
+
+    private EmbeddedKafkaBroker embeddedKafka;
+    private KafkaConfig kafkaConfig;
+    private KafkaTemplate<String, MicoCloudEventImpl<JsonNode>> template;
+
+    public MicoKafkaTestHelper(EmbeddedKafkaBroker embeddedKafka, KafkaConfig kafkaConfig) {
+        this.embeddedKafka = embeddedKafka;
+        this.kafkaConfig = kafkaConfig;
+        this.template = this.getKafkaProducer();
+    }
+
+
+    public KafkaTemplate<String, MicoCloudEventImpl<JsonNode>> getTemplate() {
+        return template;
+    }
 
     /**
      * Get a kafka consumer for testing with an embedded broker.
@@ -32,10 +58,9 @@ public class MicoKafkaTestUtils {
      * The consumer needs to be unsubscribed after the test is finished.
      * If not other tests using the same broker may fail to get messages!
      *
-     * @param embeddedKafka the embedded kafka broker
      * @return
      */
-    public static Consumer<String, MicoCloudEventImpl<JsonNode>> getKafkaConsumer(EmbeddedKafkaBroker embeddedKafka) {
+    public Consumer<String, MicoCloudEventImpl<JsonNode>> getKafkaConsumer() {
         Map<String, Object> consumerProps = org.springframework.kafka.test.utils.KafkaTestUtils.consumerProps("testT", "false", embeddedKafka);
         consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
             ErrorHandlingDeserializer2.class);
@@ -49,22 +74,13 @@ public class MicoKafkaTestUtils {
         return cf.createConsumer();
     }
 
-    /**
-     * Unsubscribes and closes the consumer. Needed after each test.
-     * @param consumer
-     */
-    public static void unsubscribeConsumer(Consumer consumer){
-        consumer.unsubscribe();
-        consumer.close();
-    }
 
     /**
      * Get a kafka producer (KafkaTemplate) for testing with an embedded broker.
      *
-     * @param embeddedKafka the embedded kafka broker
      * @return
      */
-    public static KafkaTemplate<String, MicoCloudEventImpl<JsonNode>> getKafkaProducer(EmbeddedKafkaBroker embeddedKafka) {
+    public KafkaTemplate<String, MicoCloudEventImpl<JsonNode>> getKafkaProducer() {
         Map<String, Object> producerProps = org.springframework.kafka.test.utils.KafkaTestUtils.producerProps(embeddedKafka);
         producerProps.put(
             ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
@@ -79,10 +95,9 @@ public class MicoKafkaTestUtils {
     /**
      * This method requests the topics which are acctually used by the broker.
      * It is nesseary because embeddedKafka.getTopics() does not contain a recent topic list
-     * @param embeddedKafka
      * @return
      */
-    public static Set<String> requestActuallySetTopics(EmbeddedKafkaBroker embeddedKafka) {
+    public Set<String> requestActuallySetTopics() {
         Set<String> topics = new HashSet<>();
         embeddedKafka.doWithAdmin(admin -> {
             try {
@@ -100,7 +115,7 @@ public class MicoKafkaTestUtils {
      * Contains all topics which are necessary for the tests
      * @return
      */
-    public static Set<String> getRequiredTopics(KafkaConfig kafkaConfig) {
+    public Set<String> getRequiredTopics() {
         Set<String> requiredTopics = new HashSet<>();
         requiredTopics.addAll(Arrays.asList(
             kafkaConfig.getTestMessageOutputTopic(),
@@ -119,9 +134,21 @@ public class MicoKafkaTestUtils {
      * Generates a consumer based on the given topics
      * @return
      */
-    public static Consumer<String, MicoCloudEventImpl<JsonNode>> getKafkaConsumer(EmbeddedKafkaBroker embeddedKafka, String... topics) {
-        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = MicoKafkaTestUtils.getKafkaConsumer(embeddedKafka);
+    public Consumer<String, MicoCloudEventImpl<JsonNode>> getKafkaConsumer(String... topics) {
+        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = this.getKafkaConsumer();
         embeddedKafka.consumeFromEmbeddedTopics(consumer, topics);
         return consumer;
+    }
+
+    /**
+     * Exchanges a message. It sends the provided message to the default input topic and waits {@link TestConstants#DEFAULT_KAFKA_POLL_TIMEOUT} long for a reply on the provided topic.
+     * @param consumer
+     * @param topic
+     * @param cloudEventSimple
+     * @return
+     */
+    public ConsumerRecord<String, MicoCloudEventImpl<JsonNode>> exchangeMessage(Consumer<String, MicoCloudEventImpl<JsonNode>> consumer, String topic, MicoCloudEventImpl<JsonNode> cloudEventSimple) {
+        template.send(kafkaConfig.getInputTopic(), "0", cloudEventSimple);
+        return KafkaTestUtils.getSingleRecord(consumer, topic, DEFAULT_KAFKA_POLL_TIMEOUT);
     }
 }
