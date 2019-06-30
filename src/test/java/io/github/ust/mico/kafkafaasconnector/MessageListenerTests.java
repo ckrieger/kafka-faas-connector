@@ -266,8 +266,7 @@ public class MessageListenerTests {
      */
     @Test
     public void testNotFilterNormalMessages() {
-        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = MicoKafkaTestUtils.getKafkaConsumer(embeddedKafka);
-        embeddedKafka.consumeFromAnEmbeddedTopic(consumer, kafkaConfig.getOutputTopic());
+        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = MicoKafkaTestUtils.getKafkaConsumer(embeddedKafka, kafkaConfig.getTestMessageOutputTopic(), kafkaConfig.getOutputTopic());
 
         MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
         template.send(kafkaConfig.getInputTopic(), "0", cloudEventSimple);
@@ -285,8 +284,7 @@ public class MessageListenerTests {
      */
     @Test
     public void testFilterTestMessages() {
-        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = MicoKafkaTestUtils.getKafkaConsumer(embeddedKafka);
-        embeddedKafka.consumeFromEmbeddedTopics(consumer, kafkaConfig.getTestMessageOutputTopic(), kafkaConfig.getOutputTopic());
+        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = MicoKafkaTestUtils.getKafkaConsumer(embeddedKafka, kafkaConfig.getTestMessageOutputTopic(), kafkaConfig.getOutputTopic());
 
         MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
         cloudEventSimple.setIsTestMessage(true);
@@ -309,8 +307,7 @@ public class MessageListenerTests {
      */
     @Test
     public void addMissingHeaderField() {
-        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = MicoKafkaTestUtils.getKafkaConsumer(embeddedKafka);
-        embeddedKafka.consumeFromEmbeddedTopics(consumer, kafkaConfig.getOutputTopic());
+        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = MicoKafkaTestUtils.getKafkaConsumer(embeddedKafka, kafkaConfig.getOutputTopic());
 
         MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEvent("");
         cloudEventSimple.setTime(null);
@@ -321,6 +318,26 @@ public class MessageListenerTests {
         assertThat("The event should have an id", cloudEvent.getId(), is(not(isEmptyOrNullString())));
         assertThat("The event should have a time", cloudEvent.getTime().orElse(null), is(notNullValue()));
         assertThat(cloudEvent.getTime().get(), ZonedDateTimeMatchers.within(2, ChronoUnit.SECONDS, ZonedDateTime.now().minusSeconds(1)));
+
+        // Don't forget to detach the consumer from kafka!
+        MicoKafkaTestUtils.unsubscribeConsumer(consumer);
+    }
+
+    /**
+     * Tests the subject header
+     */
+    @Test
+    public void subjectHeader() {
+        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = MicoKafkaTestUtils.getKafkaConsumer(embeddedKafka, kafkaConfig.getOutputTopic());
+
+        MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
+        final String testSubject = "TestSubject";
+        cloudEventSimple.setSubject(testSubject);
+        template.send(kafkaConfig.getInputTopic(), "0", cloudEventSimple);
+
+        ConsumerRecord<String, MicoCloudEventImpl<JsonNode>> eventWithTimeAndId = KafkaTestUtils.getSingleRecord(consumer, kafkaConfig.getOutputTopic(), 1000);
+        MicoCloudEventImpl<JsonNode> cloudEvent = eventWithTimeAndId.value();
+        assertThat("The subject header should stay the same", cloudEvent.getSubject().orElse(""), is(testSubject));
 
         // Don't forget to detach the consumer from kafka!
         MicoKafkaTestUtils.unsubscribeConsumer(consumer);

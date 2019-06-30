@@ -112,4 +112,14 @@ public class MicoKafkaTestUtils {
             TestConstants.ROUTING_TOPIC_4));
         return requiredTopics;
     }
+
+    /**
+     * Generates a consumer based on the given topics
+     * @return
+     */
+    public static Consumer<String, MicoCloudEventImpl<JsonNode>> getKafkaConsumer(EmbeddedKafkaBroker embeddedKafka, String... topics) {
+        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = MicoKafkaTestUtils.getKafkaConsumer(embeddedKafka);
+        embeddedKafka.consumeFromEmbeddedTopics(consumer, topics);
+        return consumer;
+    }
 }
