@@ -34,6 +34,10 @@ import java.net.URI;
 import java.time.ZonedDateTime;
 import java.util.*;
 
+
+/**
+ * For more information read https://mico-docs.readthedocs.io/en/latest/messaging/cloudevents.html
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

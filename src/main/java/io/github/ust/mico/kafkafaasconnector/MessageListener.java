@@ -68,6 +68,10 @@ public class MessageListener {
     @KafkaListener(topics = "${kafka.input-topic}")
     public void receive(MicoCloudEventImpl<JsonNode> cloudEvent) {
         log.debug("Received CloudEvent message: {}", cloudEvent);
+
+        //Save the message Id because some faas functions create need messages with different ids.
+        String originalMessageId = cloudEvent.getId();
+
         if (!cloudEvent.getData().isPresent()) {
             // data is entirely optional
             log.debug("Received message does not include any data!");
@@ -76,11 +80,11 @@ public class MessageListener {
             log.debug("Received expired message!");
         } else if (this.openFaaSConfig.isSkipFunctionCall()) {
             // when skipping the openFaaS function just pass on the original cloudEvent
-            this.sendCloudEvent(cloudEvent);
+            this.sendCloudEvent(cloudEvent, originalMessageId);
         } else {
             String functionResult = callFaasFunction(cloudEvent);
             ArrayList<MicoCloudEventImpl<JsonNode>> events = parseFunctionResult(functionResult, cloudEvent);
-            events.forEach(this::sendCloudEvent);
+            events.forEach(event -> this.sendCloudEvent(event,originalMessageId));
         }
     }
 
@@ -173,18 +177,18 @@ public class MessageListener {
      *
      * @param cloudEvent the cloud event to send
      */
-    public void sendCloudEvent(MicoCloudEventImpl<JsonNode> cloudEvent) {
+    public void sendCloudEvent(MicoCloudEventImpl<JsonNode> cloudEvent, String originalMessageId) {
         List<List<String>> routingSlip = cloudEvent.getRoutingSlip().orElse(new ArrayList<>());
         if (routingSlip.size() > 0) {
             List<String> destinations = routingSlip.get(routingSlip.size() - 1);
             routingSlip.remove(routingSlip.size() - 1);
             // Check if valid topic?
             for (String topic : destinations) {
-                this.sendCloudEvent(cloudEvent, topic);
+                this.sendCloudEvent(cloudEvent, topic, originalMessageId);
             }
         } else {
             // default case:
-            this.sendCloudEvent(cloudEvent, this.kafkaConfig.getOutputTopic());
+            this.sendCloudEvent(cloudEvent, this.kafkaConfig.getOutputTopic(), originalMessageId);
         }
     }
 
@@ -196,10 +200,11 @@ public class MessageListener {
      * @param cloudEvent the cloud event to send
      * @param topic      the kafka topic to send the cloud event to
      */
-    private void sendCloudEvent(MicoCloudEventImpl<JsonNode> cloudEvent, String topic) {
+    private void sendCloudEvent(MicoCloudEventImpl<JsonNode> cloudEvent, String topic, String originalMessageId) {
         cloudEvent = this.updateRouteHistoryWithTopic(cloudEvent, topic);
         // TODO commit logic/transactions
-        setMissingHeaderFields(cloudEvent);
+        setMissingHeaderFields(cloudEvent, originalMessageId);
+
         if (!isTestMessageCompleted(cloudEvent,topic)){
             log.debug("Is not necessary to filter the message. Is test message '{}', filterOutBeforeTopic: '{}', targetTopic: '{}'", cloudEvent.isTestMessage(), cloudEvent.getFilterOutBeforeTopic(), topic);
             kafkaTemplate.send(topic, cloudEvent);
@@ -264,10 +269,11 @@ public class MessageListener {
     }
 
     /**
-     * Sets the time and the Id field of a CloudEvent message if missing
+     * Sets the time, the correlationId and the Id field of a CloudEvent message if missing
      * @param cloudEvent
+     * @param originalMessageId
      */
-    public void setMissingHeaderFields(MicoCloudEventImpl<JsonNode> cloudEvent){
+    public void setMissingHeaderFields(MicoCloudEventImpl<JsonNode> cloudEvent, String originalMessageId){
         if(StringUtils.isEmpty(cloudEvent.getId())){
             cloudEvent.setRandomId();
             log.debug("Added missing id '{}' to cloud event", cloudEvent.getId());
@@ -275,6 +281,9 @@ public class MessageListener {
         if(!cloudEvent.getTime().isPresent()){
             cloudEvent.setTime(ZonedDateTime.now());
             log.debug("Added missing time '{}' to cloud event", cloudEvent.getTime().orElse(null));
+        }
+        if(!cloudEvent.getCorrelationId().isPresent()){
+            cloudEvent.setCorrelationId(originalMessageId);
         }
     }
 }
