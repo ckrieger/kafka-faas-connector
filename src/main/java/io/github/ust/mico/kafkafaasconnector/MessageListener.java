@@ -137,12 +137,17 @@ public class MessageListener {
             log.debug("Start request to function '{}'", functionUrl.toString());
             String cloudEventSerialized = Json.encode(this.updateRouteHistoryWithFunctionCall(cloudEvent, openFaaSConfig.getFunctionName()));
             log.debug("Serialized cloud event: {}", cloudEventSerialized);
-            return restTemplate.postForObject(functionUrl.toString(), cloudEventSerialized, String.class);
+            String result = restTemplate.postForObject(functionUrl.toString(), cloudEventSerialized, String.class);
+            log.debug("Faas call resulted in: '{}'",result);
+            return result;
         } catch (MalformedURLException e) {
             // TODO decide error behaviour and commit behaviour
         } catch (IllegalStateException e) {
             log.error("Failed to serialize CloudEvent '{}'.", cloudEvent);
             sendErrorMessageToInvalidMessageTopic("Failed to serialize CloudEvent: " + cloudEvent.toString(), cloudEvent);
+        } catch (HttpStatusCodeException e) {
+            log.error("A client error occurred with http status:{} . These exceptions are triggered if the  FaaS function does not return 200 OK as the status code", e.getStatusCode(), e);
+            sendErrorMessageToInvalidMessageTopic(e.toString(), cloudEvent);
         }
         return null;
     }
@@ -163,9 +168,6 @@ public class MessageListener {
         } catch (IllegalStateException e) {
             log.error("Failed to parse JSON from response '{}'.", functionResult);
             sendErrorMessageToInvalidMessageTopic("Failed to parse JSON from response: " + functionResult, sourceCloudEvent);
-        } catch (HttpStatusCodeException e) {
-            log.error("A client error occurred with http status:{} . These exceptions are triggered if the  FaaS function does not return 200 OK as the status code", e.getStatusCode(), e);
-            sendErrorMessageToInvalidMessageTopic(e.toString(), sourceCloudEvent);
         }
         // TODO refactor error reporting to use exceptions similar to exception error
         // reporting in mico core api (see HttpStatusCodeException)
@@ -204,7 +206,6 @@ public class MessageListener {
         cloudEvent = this.updateRouteHistoryWithTopic(cloudEvent, topic);
         // TODO commit logic/transactions
         setMissingHeaderFields(cloudEvent, originalMessageId);
-
         if (!isTestMessageCompleted(cloudEvent,topic)){
             log.debug("Is not necessary to filter the message. Is test message '{}', filterOutBeforeTopic: '{}', targetTopic: '{}'", cloudEvent.isTestMessage(), cloudEvent.getFilterOutBeforeTopic(), topic);
             kafkaTemplate.send(topic, cloudEvent);
@@ -284,6 +285,9 @@ public class MessageListener {
         }
         if(!cloudEvent.getCorrelationId().isPresent()){
             cloudEvent.setCorrelationId(originalMessageId);
+        }
+        if(!cloudEvent.getId().equals(originalMessageId)){
+            cloudEvent.setCreateFrom(originalMessageId);
         }
     }
 }
