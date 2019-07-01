@@ -54,4 +54,5 @@ public class TestConstants {
     public static String ROUTING_TOPIC_3 = "route-3";
     public static String ROUTING_TOPIC_4 = "route-4";
 
+    public static long DEFAULT_KAFKA_POLL_TIMEOUT = 1000;
 }
