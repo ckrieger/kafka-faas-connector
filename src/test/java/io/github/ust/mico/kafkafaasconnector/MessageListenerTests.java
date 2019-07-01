@@ -27,6 +27,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import io.github.ust.mico.kafkafaasconnector.configuration.KafkaConfig;
+import io.github.ust.mico.kafkafaasconnector.configuration.OpenFaaSConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -83,6 +84,9 @@ public class MessageListenerTests {
     MessageListener messageListener;
 
     MicoKafkaTestHelper micoKafkaTestHelper;
+
+    @Autowired
+    private OpenFaaSConfig openFaaSConfig;
 
     @PostConstruct
     public void before(){
@@ -384,6 +388,26 @@ public class MessageListenerTests {
         MicoKafkaTestHelper.unsubscribeConsumer(consumer);
     }
 
+    /**
+     * Tests if the createdFrom attribute is set correctly
+     */
+    @Test
+    public void testCreatedFrom() {
+        MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
+        final String originalMessageId = "OriginalMessageId";
+        messageListener.setMissingHeaderFields(cloudEventSimple,originalMessageId);
+        assertThat("If the id changes the createdFrom attribute has to be set", cloudEventSimple.getCreateFrom().orElse(null), is(originalMessageId));
+    }
+
+    /**
+     * Tests if the createdFrom attribute is omitted if it is not necessary
+     */
+    @Test
+    public void testNotCreatedFrom() {
+        MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
+        messageListener.setMissingHeaderFields(cloudEventSimple,cloudEventSimple.getId());
+        assertThat("If the id stays the same the createdFrom attribute must be empty", cloudEventSimple.getCreateFrom().orElse(null), is(nullValue()));
+    }
 
 
 }
