@@ -54,7 +54,6 @@ import io.github.ust.mico.kafkafaasconnector.kafka.RouteHistory;
 
 import javax.annotation.PostConstruct;
 
-import static io.github.ust.mico.kafkafaasconnector.TestConstants.DEFAULT_KAFKA_POLL_TIMEOUT;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.Matchers.*;
 import static org.hamcrest.core.IsNull.notNullValue;
@@ -72,9 +71,9 @@ public class MessageListenerTests {
     @Autowired
     private KafkaConfig kafkaConfig;
 
-    EmbeddedKafkaBroker embeddedKafka = broker.getEmbeddedKafka();
+    private final EmbeddedKafkaBroker embeddedKafka = broker.getEmbeddedKafka();
 
-    KafkaTemplate<String, MicoCloudEventImpl<JsonNode>> template;
+    private KafkaTemplate<String, MicoCloudEventImpl<JsonNode>> template;
 
     // https://docs.spring.io/spring-kafka/docs/2.2.6.RELEASE/reference/html/#kafka-testing-junit4-class-rule
     @ClassRule
@@ -83,20 +82,17 @@ public class MessageListenerTests {
     @Autowired
     MessageListener messageListener;
 
-    MicoKafkaTestHelper micoKafkaTestHelper;
-
-    @Autowired
-    private OpenFaaSConfig openFaaSConfig;
+    private MicoKafkaTestHelper micoKafkaTestHelper;
 
     @PostConstruct
     public void before(){
-        micoKafkaTestHelper = new MicoKafkaTestHelper(embeddedKafka,kafkaConfig);
-        template = micoKafkaTestHelper.getTemplate();
+        this.micoKafkaTestHelper = new MicoKafkaTestHelper(embeddedKafka,kafkaConfig);
+        template = this.micoKafkaTestHelper.getTemplate();
         //We need to add them outside of the rule because the autowired kakfaConfig is not accessible from the static rule
         //We can not use @BeforeClass which is only executed once because it has to be static and we do not have access to the autowired kakfaConfig
 
-        Set<String> requiredTopics = micoKafkaTestHelper.getRequiredTopics();
-        Set<String> alreadySetTopics = micoKafkaTestHelper.requestActuallySetTopics();
+        Set<String> requiredTopics = this.micoKafkaTestHelper.getRequiredTopics();
+        Set<String> alreadySetTopics = this.micoKafkaTestHelper.requestActuallySetTopics();
         requiredTopics.removeAll(alreadySetTopics);
         requiredTopics.forEach(topic -> embeddedKafka.addTopics(topic));
     }
@@ -109,7 +105,7 @@ public class MessageListenerTests {
     }
 
     @Test
-    public void parseFunctionResult() throws JsonProcessingException {
+    public void parseFunctionResult() {
         MicoCloudEventImpl<JsonNode> cloudEvent1 = CloudEventTestUtils.basicCloudEvent("CloudEvent1");
         MicoCloudEventImpl<JsonNode> cloudEvent2 = CloudEventTestUtils.basicCloudEvent("CloudEvent2");
         ArrayList<MicoCloudEventImpl<JsonNode>> input = new ArrayList<>();
@@ -132,7 +128,7 @@ public class MessageListenerTests {
      */
     @Test
     public void testExpiredMessage() {
-        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = micoKafkaTestHelper.getKafkaConsumer();
+        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = this.micoKafkaTestHelper.getKafkaConsumer();
         embeddedKafka.consumeFromAllEmbeddedTopics(consumer);
         String eventId = "CloudEventExpired";
 
@@ -165,7 +161,7 @@ public class MessageListenerTests {
      */
     @Test
     public void testRouteHistory() {
-        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = micoKafkaTestHelper.getKafkaConsumer();
+        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = this.micoKafkaTestHelper.getKafkaConsumer();
         embeddedKafka.consumeFromAllEmbeddedTopics(consumer);
 
         String eventIdSimple = "routeHistorySimple";
@@ -274,10 +270,10 @@ public class MessageListenerTests {
      */
     @Test
     public void testNotFilterNormalMessages() {
-        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = micoKafkaTestHelper.getKafkaConsumer(kafkaConfig.getTestMessageOutputTopic(), kafkaConfig.getOutputTopic());
+        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = this.micoKafkaTestHelper.getKafkaConsumer(kafkaConfig.getTestMessageOutputTopic(), kafkaConfig.getOutputTopic());
 
         MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
-        ConsumerRecord<String, MicoCloudEventImpl<JsonNode>> event = micoKafkaTestHelper.exchangeMessage(consumer, kafkaConfig.getOutputTopic(), cloudEventSimple);
+        ConsumerRecord<String, MicoCloudEventImpl<JsonNode>> event = this.micoKafkaTestHelper.exchangeMessage(consumer, kafkaConfig.getOutputTopic(), cloudEventSimple);
         assertThat(event, is(notNullValue()));
         assertThat(event.value().getId(), is(equalTo(cloudEventSimple.getId())));
 
@@ -290,17 +286,17 @@ public class MessageListenerTests {
      */
     @Test
     public void testFilterTestMessages() {
-        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = micoKafkaTestHelper.getKafkaConsumer(kafkaConfig.getTestMessageOutputTopic(), kafkaConfig.getOutputTopic());
+        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = this.micoKafkaTestHelper.getKafkaConsumer(kafkaConfig.getTestMessageOutputTopic(), kafkaConfig.getOutputTopic());
 
         MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
         cloudEventSimple.setIsTestMessage(true);
         cloudEventSimple.setFilterOutBeforeTopic(kafkaConfig.getOutputTopic());
 
-        ConsumerRecord<String, MicoCloudEventImpl<JsonNode>> eventFilteredTestMessageTopic = micoKafkaTestHelper.exchangeMessage(consumer, kafkaConfig.getTestMessageOutputTopic(), cloudEventSimple);
+        ConsumerRecord<String, MicoCloudEventImpl<JsonNode>> eventFilteredTestMessageTopic = this.micoKafkaTestHelper.exchangeMessage(consumer, kafkaConfig.getTestMessageOutputTopic(), cloudEventSimple);
 
         ArrayList<ConsumerRecord<String, MicoCloudEventImpl<JsonNode>>> otherEvents = new ArrayList<>();
         KafkaTestUtils.getRecords(consumer, 1000).forEach(otherEvents::add);
-        assertThat("The event should be on the filtered test topc", eventFilteredTestMessageTopic, is(notNullValue()));
+        assertThat("The event should be on the filtered test topic", eventFilteredTestMessageTopic, is(notNullValue()));
         assertThat("The ids should be the same", eventFilteredTestMessageTopic.value().getId(), is(equalTo(cloudEventSimple.getId())));
         assertThat("There should not any messages on other topics", otherEvents, is(empty()));
 
@@ -313,12 +309,12 @@ public class MessageListenerTests {
      */
     @Test
     public void addMissingHeaderField() {
-        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = micoKafkaTestHelper.getKafkaConsumer(kafkaConfig.getOutputTopic());
+        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = this.micoKafkaTestHelper.getKafkaConsumer(kafkaConfig.getOutputTopic());
 
         MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEvent("");
         cloudEventSimple.setTime(null);
 
-        ConsumerRecord<String, MicoCloudEventImpl<JsonNode>> eventWithTimeAndId = micoKafkaTestHelper.exchangeMessage(consumer, kafkaConfig.getOutputTopic(), cloudEventSimple);
+        ConsumerRecord<String, MicoCloudEventImpl<JsonNode>> eventWithTimeAndId = this.micoKafkaTestHelper.exchangeMessage(consumer, kafkaConfig.getOutputTopic(), cloudEventSimple);
 
         MicoCloudEventImpl<JsonNode> cloudEvent = eventWithTimeAndId.value();
         assertThat("The event should have an id", cloudEvent.getId(), is(not(isEmptyOrNullString())));
@@ -334,13 +330,13 @@ public class MessageListenerTests {
      */
     @Test
     public void subjectHeader() {
-        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = micoKafkaTestHelper.getKafkaConsumer(kafkaConfig.getOutputTopic());
+        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = this.micoKafkaTestHelper.getKafkaConsumer(kafkaConfig.getOutputTopic());
 
         MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
         final String testSubject = "TestSubject";
         cloudEventSimple.setSubject(testSubject);
 
-        ConsumerRecord<String, MicoCloudEventImpl<JsonNode>> eventWithTimeAndId = micoKafkaTestHelper.exchangeMessage(consumer, kafkaConfig.getOutputTopic(), cloudEventSimple);
+        ConsumerRecord<String, MicoCloudEventImpl<JsonNode>> eventWithTimeAndId = this.micoKafkaTestHelper.exchangeMessage(consumer, kafkaConfig.getOutputTopic(), cloudEventSimple);
 
         MicoCloudEventImpl<JsonNode> cloudEvent = eventWithTimeAndId.value();
         assertThat("The subject header should stay the same", cloudEvent.getSubject().orElse(""), is(testSubject));
@@ -354,12 +350,12 @@ public class MessageListenerTests {
      */
     @Test
     public void testMissingCorrelationId() {
-        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = micoKafkaTestHelper.getKafkaConsumer(kafkaConfig.getOutputTopic());
+        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = this.micoKafkaTestHelper.getKafkaConsumer(kafkaConfig.getOutputTopic());
 
         MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
         final String messageId = cloudEventSimple.getId();
 
-        ConsumerRecord<String, MicoCloudEventImpl<JsonNode>> eventWithCorrelationId = micoKafkaTestHelper.exchangeMessage(consumer, kafkaConfig.getOutputTopic(), cloudEventSimple);
+        ConsumerRecord<String, MicoCloudEventImpl<JsonNode>> eventWithCorrelationId = this.micoKafkaTestHelper.exchangeMessage(consumer, kafkaConfig.getOutputTopic(), cloudEventSimple);
         MicoCloudEventImpl<JsonNode> cloudEvent = eventWithCorrelationId.value();
 
         assertThat("The correlationId should equal the id of the original message", cloudEvent.getCorrelationId().orElse(""), is(messageId));
@@ -369,17 +365,17 @@ public class MessageListenerTests {
     }
 
     /**
-     * Tests if a missing correlation is unchanged of set
+     * Tests if a set correlation remains unchanged
      */
     @Test
     public void testCorrelationIdUnChanged() {
-        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = micoKafkaTestHelper.getKafkaConsumer(kafkaConfig.getOutputTopic());
+        Consumer<String, MicoCloudEventImpl<JsonNode>> consumer = this.micoKafkaTestHelper.getKafkaConsumer(kafkaConfig.getOutputTopic());
 
         MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
         String testCorrelationId = "testCorrelationId";
         cloudEventSimple.setCorrelationId(testCorrelationId);
 
-        ConsumerRecord<String, MicoCloudEventImpl<JsonNode>> eventWithCorrelationId = micoKafkaTestHelper.exchangeMessage(consumer, kafkaConfig.getOutputTopic(), cloudEventSimple);
+        ConsumerRecord<String, MicoCloudEventImpl<JsonNode>> eventWithCorrelationId = this.micoKafkaTestHelper.exchangeMessage(consumer, kafkaConfig.getOutputTopic(), cloudEventSimple);
         MicoCloudEventImpl<JsonNode> cloudEvent = eventWithCorrelationId.value();
 
         assertThat("The correlationId should be unchanged", cloudEvent.getCorrelationId().orElse(""), is(testCorrelationId));
