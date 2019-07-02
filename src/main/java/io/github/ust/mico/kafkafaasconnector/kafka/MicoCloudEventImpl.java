@@ -70,6 +70,9 @@ public class MicoCloudEventImpl<T> implements CloudEvent<T> {
     private List<List<String>> routingSlip;
     private Boolean isTestMessage;
     private String filterOutBeforeTopic;
+    private Boolean isErrorMessage;
+    private String errorMessage;
+    private String errorTrace;
     private ZonedDateTime expiryDate;
     private String sequenceId;
     private Integer sequenceNumber;
@@ -100,6 +103,9 @@ public class MicoCloudEventImpl<T> implements CloudEvent<T> {
             cloudEvent.routingSlip,
             cloudEvent.isTestMessage,
             cloudEvent.filterOutBeforeTopic,
+            cloudEvent.isErrorMessage,
+            cloudEvent.errorMessage,
+            cloudEvent.errorTrace,
             cloudEvent.expiryDate,
             cloudEvent.sequenceId,
             cloudEvent.sequenceNumber,
@@ -182,6 +188,18 @@ public class MicoCloudEventImpl<T> implements CloudEvent<T> {
 
     public Optional<String> getFilterOutBeforeTopic() {
         return Optional.ofNullable(filterOutBeforeTopic);
+    }
+
+    public Optional<Boolean> isErrorMessage() {
+        return Optional.ofNullable(isErrorMessage);
+    }
+
+    public Optional<String> getErrorMessage() {
+        return Optional.ofNullable(errorMessage);
+    }
+
+    public Optional<String> getErrorTrace() {
+        return Optional.ofNullable(errorTrace);
     }
 
     public Optional<ZonedDateTime> getExpiryDate() {

@@ -206,6 +206,7 @@ public class MessageListenerTests {
             }
         };
         events.forEach(record -> {
+            assertNotEquals("There was a message on the error topic!", this.kafkaConfig.getInvalidMessageTopic(), record.topic());
             if (!record.topic().equals(kafkaConfig.getInputTopic())) {
                 List<RouteHistory> history = record.value().getRoute().orElse(new ArrayList<>());
                 assertTrue("Route history was not set/empty.", history.size() > 0);

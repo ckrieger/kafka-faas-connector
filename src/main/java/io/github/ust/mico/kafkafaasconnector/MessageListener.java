@@ -24,6 +24,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.cloudevents.json.Json;
 import io.github.ust.mico.kafkafaasconnector.configuration.KafkaConfig;
 import io.github.ust.mico.kafkafaasconnector.configuration.OpenFaaSConfig;
+import io.github.ust.mico.kafkafaasconnector.exception.MicoCloudEventException;
 import io.github.ust.mico.kafkafaasconnector.kafka.ErrorReportMessage;
 import io.github.ust.mico.kafkafaasconnector.kafka.MicoCloudEventImpl;
 import io.github.ust.mico.kafkafaasconnector.kafka.RouteHistory;
@@ -72,19 +73,24 @@ public class MessageListener {
         //Save the message Id because some faas functions create need messages with different ids.
         String originalMessageId = cloudEvent.getId();
 
-        if (!cloudEvent.getData().isPresent()) {
-            // data is entirely optional
-            log.debug("Received message does not include any data!");
-        }
-        if (cloudEvent.getExpiryDate().map(exp -> exp.compareTo(ZonedDateTime.now()) < 0).orElse(false)) {
-            log.debug("Received expired message!");
-        } else if (this.openFaaSConfig.isSkipFunctionCall()) {
-            // when skipping the openFaaS function just pass on the original cloudEvent
-            this.sendCloudEvent(cloudEvent, originalMessageId);
-        } else {
-            String functionResult = callFaasFunction(cloudEvent);
-            ArrayList<MicoCloudEventImpl<JsonNode>> events = parseFunctionResult(functionResult, cloudEvent);
-            events.forEach(event -> this.sendCloudEvent(event,originalMessageId));
+        try {
+            if (!cloudEvent.getData().isPresent()) {
+                // data is entirely optional
+                log.debug("Received message does not include any data!");
+            }
+            if (cloudEvent.getExpiryDate().map(exp -> exp.compareTo(ZonedDateTime.now()) < 0).orElse(false)) {
+                log.debug("Received expired message!");
+                throw new MicoCloudEventException("CloudEvent was expired already!", cloudEvent);
+            } else if (this.openFaaSConfig.isSkipFunctionCall()) {
+                // when skipping the openFaaS function just pass on the original cloudEvent
+                this.sendCloudEvent(cloudEvent, originalMessageId);
+            } else {
+                String functionResult = callFaasFunction(cloudEvent);
+                ArrayList<MicoCloudEventImpl<JsonNode>> events = parseFunctionResult(functionResult, cloudEvent);
+                events.forEach(event -> this.sendCloudEvent(event,originalMessageId));
+            }
+        } catch (MicoCloudEventException e) {
+            this.sendCloudEvent(e.getErrorEvent(), this.kafkaConfig.getInvalidMessageTopic(), originalMessageId);
         }
     }
 
@@ -283,11 +289,16 @@ public class MessageListener {
             cloudEvent.setTime(ZonedDateTime.now());
             log.debug("Added missing time '{}' to cloud event", cloudEvent.getTime().orElse(null));
         }
-        if(!cloudEvent.getCorrelationId().isPresent()){
-            cloudEvent.setCorrelationId(originalMessageId);
-        }
-        if(!cloudEvent.getId().equals(originalMessageId)){
-            cloudEvent.setCreateFrom(originalMessageId);
+        if (!StringUtils.isEmpty(originalMessageId)) {
+            if(!cloudEvent.getCorrelationId().isPresent()){
+                cloudEvent.setCorrelationId(originalMessageId);
+            }
+            if(!cloudEvent.getId().equals(originalMessageId)){
+                if (!cloudEvent.isErrorMessage().orElse(false) ||
+                        (cloudEvent.isErrorMessage().orElse(false) && StringUtils.isEmpty(cloudEvent.getCreateFrom().orElse("")))) {
+                    cloudEvent.setCreateFrom(originalMessageId);
+                }
+            }
         }
     }
 }
