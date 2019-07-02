@@ -4,6 +4,17 @@ The *Kafka FaaS Connector* is used by [MICO](https://github.com/UST-MICO/mico) t
 
 ## Requirements
 
+*Kafka FaaS Connector* requires Kafka and OpenFaaS.
+
+### Kubernetes
+
+Run Kafka, ZooKeeper and OpenFaaS in your Kubernetes cluster.
+You find some notes about Kafka in our [documentation](https://mico-docs.readthedocs.io/en/latest/setup/kubernetes/kafka.html).
+
+Modify `kafka-faas-connector.yml` to set the correct URLs of the OpenFaaS gateway (default: `http://gateway.openfaas:8080`) and the Kafka servers (default: `bootstrap.kafka:9092`).
+
+### Local execution
+
 Launch Kafka and ZooKeeper or establish a connection to already running instances (e.g. via port forwarding).
 
 docker-compose:
@@ -24,6 +35,15 @@ Build and push the Docker image:
 docker build -t ustmico/kafka-faas-connector . && docker push ustmico/kafka-faas-connector
 ```
 
+**Kubernetes:**
+
+Deployment:
+```bash
+kubectl apply -f kafka-faas-connector.yml
+```
+
+**Local execution:**
+
 docker-compose:
 ```bash
 docker-compose up --build kafka-faas-connector
@@ -37,34 +57,12 @@ kubectl port-forward svc/kafka-faas-connector -n mico-workspace 8080
 curl localhost:8080/actuator/configprops | jq . > configmaps.json
 ```
 
-Kafka Producer (local):
-```bash
-./kafka-console-producer.sh --broker-list localhost:9092 --topic transform-request
-```
-
-Kafka Consumer (local):
-```bash
-./kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic transform-result --from-beginning
-```
-
-Sample message:
-```json
-{"specversion":"0.2","type":"io.github.ust.mico.result","source":"/router","id":"A234-1234-1234","time":"2019-05-08T17:31:00Z","contentType":"application/json","data":"test"}
-```
-
-curl the dummy function:
-```bash
-curl http://127.0.0.1:8080/function/dummy -d '{"specversion":"0.2","type":"io.github.ust.mico.result","source":"/router","id":"A234-1234-1234","time":"2019-05-08T17:31:00Z","contentType":"application/json","data":"test"}
-'
-```
-
-Get logs:
+Get the Kubernetes logs:
 ```bash
 kubectl -n $NAMESPACE logs -f $(kubectl get pods -n $NAMESPACE --selector=run=kafka-faas-connector --output=jsonpath={.items..metadata.name})
 ```
 
-Delete Kuberentes pod:
+Restart it by deleting the Kubernetes pod:
 ```bash
 kubectl -n $NAMESPACE delete pod $(kubectl get pods -n $NAMESPACE --selector=run=kafka-faas-connector --output=jsonpath={.items..metadata.name})
 ```
-

@@ -65,7 +65,7 @@ public class MessageListener {
      *
      * @param cloudEvent
      */
-    @KafkaListener(topics = "${kafka.input-topic}")
+    @KafkaListener(topics = "${kafka.input-topic}", groupId = "${kafka.group-id}")
     public void receive(MicoCloudEventImpl<JsonNode> cloudEvent) {
         log.debug("Received CloudEvent message: {}", cloudEvent);
 

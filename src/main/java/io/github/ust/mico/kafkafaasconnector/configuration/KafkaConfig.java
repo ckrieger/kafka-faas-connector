@@ -36,10 +36,18 @@ import javax.validation.constraints.NotBlank;
 public class KafkaConfig {
 
     /**
-     * The URL of the Kafka bootstrap server.
+     * The URLs of the Kafka bootstrap servers in a comma separated list.
+     * Example: localhost:9092,localhost:9093
      */
     @NotBlank
-    private String bootstrapServer;
+    private String bootstrapServers;
+
+    /**
+     * The group id is a string that uniquely identifies the group
+     * of consumer processes to which this consumer belongs.
+     */
+    @NotBlank
+    private String groupId;
 
     /**
      * The Kafka input topic.
