@@ -43,6 +43,13 @@ public class KafkaConfig {
     private String bootstrapServers;
 
     /**
+     * The group id is a string that uniquely identifies the group
+     * of consumer processes to which this consumer belongs.
+     */
+    @NotBlank
+    private String groupId;
+
+    /**
      * The Kafka input topic.
      */
     @NotBlank

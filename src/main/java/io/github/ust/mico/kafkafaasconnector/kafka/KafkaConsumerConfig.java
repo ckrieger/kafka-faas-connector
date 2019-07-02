@@ -54,8 +54,8 @@ public class KafkaConsumerConfig {
     @Bean
     public Map<String, Object> consumerConfigs() {
         Map<String, Object> properties = new HashMap<>();
-        properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
-            kafkaConfig.getBootstrapServers());
+        properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaConfig.getBootstrapServers());
+        properties.put(ConsumerConfig.GROUP_ID_CONFIG, kafkaConfig.getGroupId());
         properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
             ErrorHandlingDeserializer2.class);
         properties.put(ErrorHandlingDeserializer2.KEY_DESERIALIZER_CLASS,
@@ -66,7 +66,6 @@ public class KafkaConsumerConfig {
         properties.put(ErrorHandlingDeserializer2.VALUE_DESERIALIZER_CLASS,
             CloudEventDeserializer.class);
         properties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
-        properties.put(ConsumerConfig.GROUP_ID_CONFIG, "TestGroup");
 
         return properties;
     }
