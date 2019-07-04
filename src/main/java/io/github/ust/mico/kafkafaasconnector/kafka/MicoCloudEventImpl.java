@@ -65,7 +65,7 @@ public class MicoCloudEventImpl<T> implements CloudEvent<T> {
     private List<Extension> extensions = new LinkedList<>();
 
     private String correlationId;
-    private String createFrom;
+    private String createdFrom;
     private List<RouteHistory> route;
     private List<List<String>> routingSlip;
     private Boolean isTestMessage;
@@ -98,7 +98,7 @@ public class MicoCloudEventImpl<T> implements CloudEvent<T> {
             cloudEvent.data,
             cloudEvent.extensions,
             cloudEvent.correlationId,
-            cloudEvent.createFrom,
+            cloudEvent.createdFrom,
             cloudEvent.route,
             cloudEvent.routingSlip,
             cloudEvent.isTestMessage,
@@ -170,8 +170,8 @@ public class MicoCloudEventImpl<T> implements CloudEvent<T> {
         return Optional.ofNullable(correlationId);
     }
 
-    public Optional<String> getCreateFrom() {
-        return Optional.ofNullable(createFrom);
+    public Optional<String> getCreatedFrom() {
+        return Optional.ofNullable(createdFrom);
     }
 
     public Optional<List<RouteHistory>> getRoute() {

@@ -29,10 +29,12 @@ import org.springframework.util.StringUtils;
 
 import io.cloudevents.json.Json;
 import io.github.ust.mico.kafkafaasconnector.kafka.MicoCloudEventImpl;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Base exception for CloudEvent errors.
  */
+@Slf4j
 public class MicoCloudEventException extends Exception {
 
     private static final long serialVersionUID = 7526812870651753814L;
@@ -63,6 +65,8 @@ public class MicoCloudEventException extends Exception {
     /**
      * Serialize this exception into an error CloudEvent.
      *
+     * The returned CloudEvent has an empty source that has to be set!
+     *
      * @return the error CloudEvent
      */
     public MicoCloudEventImpl<JsonNode> getErrorEvent() {
@@ -74,8 +78,8 @@ public class MicoCloudEventException extends Exception {
         if (this.sourceEvent != null) {
             try {
                 String sourceId = this.sourceEvent.getId();
-                if (StringUtils.isEmpty(sourceId)) {
-                    error.setCreateFrom(sourceId);
+                if (!StringUtils.isEmpty(sourceId)) {
+                    error.setCreatedFrom(sourceId);
                 }
                 Optional<String> correlationId = this.sourceEvent.getCorrelationId();
                 if (correlationId.isPresent()) {
@@ -85,8 +89,7 @@ public class MicoCloudEventException extends Exception {
                 JsonNode data = Json.MAPPER.convertValue(this.sourceEvent, JsonNode.class);
                 error.setData(data);
             } catch (Exception e) {
-                // FIXME write proper log
-                e.printStackTrace();
+                log.error("Could not construct a CloudEvent out of this error.", e);
             }
         }
         return error;

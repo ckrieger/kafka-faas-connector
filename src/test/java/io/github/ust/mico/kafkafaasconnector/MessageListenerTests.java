@@ -23,15 +23,13 @@ import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import io.github.ust.mico.kafkafaasconnector.configuration.KafkaConfig;
-import io.github.ust.mico.kafkafaasconnector.configuration.OpenFaaSConfig;
+import io.github.ust.mico.kafkafaasconnector.exception.MicoCloudEventException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.exparity.hamcrest.date.ZonedDateTimeMatchers;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -65,7 +63,6 @@ import static org.junit.Assert.*;
 @AutoConfigureMockMvc
 @ActiveProfiles("testing")
 @DirtiesContext
-@Slf4j
 public class MessageListenerTests {
 
     @Autowired
@@ -98,14 +95,14 @@ public class MessageListenerTests {
     }
 
     @Test
-    public void parseEmptyFunctionResult() {
+    public void parseEmptyFunctionResult() throws MicoCloudEventException {
         ArrayList<MicoCloudEventImpl<JsonNode>> result = this.messageListener.parseFunctionResult("[]", null);
         assertNotNull(result);
         assertEquals(0, result.size());
     }
 
     @Test
-    public void parseFunctionResult() {
+    public void parseFunctionResult() throws MicoCloudEventException {
         MicoCloudEventImpl<JsonNode> cloudEvent1 = CloudEventTestUtils.basicCloudEvent("CloudEvent1");
         MicoCloudEventImpl<JsonNode> cloudEvent2 = CloudEventTestUtils.basicCloudEvent("CloudEvent2");
         ArrayList<MicoCloudEventImpl<JsonNode>> input = new ArrayList<>();
@@ -136,21 +133,29 @@ public class MessageListenerTests {
         MicoCloudEventImpl<JsonNode> cloudEvent = CloudEventTestUtils.setPastExpiryDate(CloudEventTestUtils.basicCloudEvent(eventId));
         template.send(kafkaConfig.getInputTopic(), "0", cloudEvent);
 
-        // consume at least the message send by this unit test
-        ConsumerRecords<String, MicoCloudEventImpl<JsonNode>> records = KafkaTestUtils.getRecords(consumer, 100);
-        // second consume to catch message(s) sent by unit under test
-        ConsumerRecords<String, MicoCloudEventImpl<JsonNode>> records2 = KafkaTestUtils.getRecords(consumer, 1000);
+        ArrayList<ConsumerRecord<String, MicoCloudEventImpl<JsonNode>>> events = new ArrayList<>();
+        // consume all message send during this unit test
+        int lastSize = events.size();
+        while (events.size() == 0 || lastSize < events.size()) {
+            lastSize = events.size();
+            KafkaTestUtils.getRecords(consumer, 1000).forEach(events::add);
+        }
 
-        // test for expired cloud event message on topics other then the input topic
-        java.util.function.Consumer<? super ConsumerRecord<String, MicoCloudEventImpl<JsonNode>>> predicate = record -> {
+        // test for expired cloud event message on topics other then the input or error topic
+        events.forEach(record -> {
             if (record.value().getId().equals(eventId)) {
                 if (!record.topic().equals(kafkaConfig.getInputTopic())) {
-                    assertNotEquals("The expired message was wrongly processed and sent to the output channel!", record.topic(), kafkaConfig.getOutputTopic());
+                    assertNotEquals("The expired message was wrongly processed and sent to the wrong topic!", record.topic(), kafkaConfig.getOutputTopic());
+                }
+                return;
+            }
+            if (eventId.equals(record.value().getCreatedFrom().orElse(null))) {
+                assertTrue("The expired message was not wrapped in a error message but processed normally!", record.value().isErrorMessage().orElse(false));
+                if (!record.topic().equals(kafkaConfig.getInvalidMessageTopic())) {
+                    assertNotEquals("The error message was sent to the wrong topic!", record.topic(), kafkaConfig.getOutputTopic());
                 }
             }
-        };
-        records.forEach(predicate);
-        records2.forEach(predicate);
+        });
 
         // Don't forget to detach the consumer from kafka!
         MicoKafkaTestHelper.unsubscribeConsumer(consumer);
@@ -197,16 +202,9 @@ public class MessageListenerTests {
             KafkaTestUtils.getRecords(consumer, 1000).forEach(events::add);
         }
 
-        // test for expired cloud event message on topics other then the input topic
-        java.util.function.Consumer<? super ConsumerRecord<String, MicoCloudEventImpl<JsonNode>>> predicate = record -> {
-            if (record.value().getId().equals("eventId")) {
-                if (!record.topic().equals(kafkaConfig.getInputTopic())) {
-                    assertNotEquals("The expired message was wrongly processed and sent to the output channel!", record.topic(), kafkaConfig.getOutputTopic());
-                }
-            }
-        };
         events.forEach(record -> {
             assertNotEquals("There was a message on the error topic!", this.kafkaConfig.getInvalidMessageTopic(), record.topic());
+            assertNotNull(record.value());
             if (!record.topic().equals(kafkaConfig.getInputTopic())) {
                 List<RouteHistory> history = record.value().getRoute().orElse(new ArrayList<>());
                 assertTrue("Route history was not set/empty.", history.size() > 0);
@@ -393,7 +391,7 @@ public class MessageListenerTests {
         MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
         final String originalMessageId = "OriginalMessageId";
         messageListener.setMissingHeaderFields(cloudEventSimple,originalMessageId);
-        assertThat("If the id changes the createdFrom attribute has to be set", cloudEventSimple.getCreateFrom().orElse(null), is(originalMessageId));
+        assertThat("If the id changes the createdFrom attribute has to be set", cloudEventSimple.getCreatedFrom().orElse(null), is(originalMessageId));
     }
 
     /**
@@ -403,7 +401,7 @@ public class MessageListenerTests {
     public void testNotCreatedFrom() {
         MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
         messageListener.setMissingHeaderFields(cloudEventSimple,cloudEventSimple.getId());
-        assertThat("If the id stays the same the createdFrom attribute must be empty", cloudEventSimple.getCreateFrom().orElse(null), is(nullValue()));
+        assertThat("If the id stays the same the createdFrom attribute must be empty", cloudEventSimple.getCreatedFrom().orElse(null), is(nullValue()));
     }
 
 
