@@ -1,0 +1,5 @@
+**/.*
+**/*.md
+LICENSE
+docker-compose.yml
+kafka-faas-connector.yml
