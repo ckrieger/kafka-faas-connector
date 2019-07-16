@@ -64,9 +64,6 @@ public class MessageListener {
     @Autowired
     private OpenFaaSConfig openFaaSConfig;
 
-    @Value("${component.id}")
-    private String componentId;
-
     /**
      * Entry point for incoming messages from kafka.
      *
@@ -317,7 +314,7 @@ public class MessageListener {
         }
         if (cloudEvent.isErrorMessage().orElse(false)) {
             try {
-                URI source = new URI("kafka://" + this.componentId + "/" + this.kafkaConfig.getInputTopic());
+                URI source = new URI("kafka://" + this.kafkaConfig.getGroupId() + "/" + this.kafkaConfig.getInputTopic());
                 cloudEvent.setSource(source);
             } catch (URISyntaxException e) {
                 log.error("Could not construct a valid source attribute for the error message.", e);
