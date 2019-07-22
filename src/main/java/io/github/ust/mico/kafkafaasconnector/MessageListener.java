@@ -134,9 +134,9 @@ public class MessageListener {
      */
     private void safeSendErrorMessage(MicoCloudEventImpl<JsonNode> cloudEvent, String topic, String originalMessageId) {
         try {
-            this.sendCloudEvent(cloudEvent, this.kafkaConfig.getInvalidMessageTopic(), originalMessageId);
+            this.sendCloudEvent(cloudEvent, topic, originalMessageId);
         } catch (Exception e) {
-            log.error("Failed to process error message.", e);
+            log.error("Failed to process error message. Caused by: {}", e.getMessage());
         }
     }
 
