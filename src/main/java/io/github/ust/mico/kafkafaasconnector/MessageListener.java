@@ -66,13 +66,13 @@ public class MessageListener {
     /**
      * Entry point for incoming messages from kafka.
      *
-     * @param cloudEvent
+     * @param cloudEvent the received cloud event
      */
     @KafkaListener(topics = "${kafka.input-topic}", groupId = "${kafka.group-id}")
     public void receive(MicoCloudEventImpl<JsonNode> cloudEvent) {
         log.debug("Received CloudEvent message: {}", cloudEvent);
 
-        //Save the message Id because some faas functions create need messages with different ids.
+        // Save the message Id because some faas functions create need messages with different ids.
         String originalMessageId = cloudEvent.getId();
 
         try {
@@ -82,7 +82,7 @@ public class MessageListener {
             }
             if (cloudEvent.getExpiryDate().map(exp -> exp.compareTo(ZonedDateTime.now()) < 0).orElse(false)) {
                 log.debug("Received expired message!");
-                throw new MicoCloudEventException("CloudEvent was expired already!", cloudEvent);
+                throw new MicoCloudEventException("CloudEvent has already expired!", cloudEvent);
             } else if (this.openFaaSConfig.isSkipFunctionCall()) {
                 // when skipping the openFaaS function just pass on the original cloudEvent
                 this.safeSendCloudEvent(cloudEvent, originalMessageId);
@@ -102,7 +102,7 @@ public class MessageListener {
     /**
      * Send a cloud event using the sendCloudEvent method.
      * <p>
-     * This method is safe in the sence that it does not throw exceptions and catches all exceptions during sending.
+     * This method is safe in the sense that it does not throw exceptions and catches all exceptions during sending.
      *
      * @param cloudEvent        the cloud event to send
      * @param originalMessageId the id of the original message
@@ -117,16 +117,15 @@ public class MessageListener {
                 this.safeSendErrorMessage(error.getErrorEvent(), this.kafkaConfig.getInvalidMessageTopic(), originalMessageId);
             }
         } catch (Exception e) {
-            MicoCloudEventException error = new MicoCloudEventException("An error occured while sending the cloud event.", cloudEvent);
+            MicoCloudEventException error = new MicoCloudEventException("An error occurred while sending the cloud event.", cloudEvent);
             this.safeSendErrorMessage(error.getErrorEvent(), this.kafkaConfig.getInvalidMessageTopic(), originalMessageId);
         }
     }
 
-
     /**
      * Send a cloud event error message using the sendCloudEvent method.
      * <p>
-     * This method is safe in the sence that it does not throw exceptions and catches all exceptions during sending.
+     * This method is safe in the sense that it does not throw exceptions and catches all exceptions during sending.
      *
      * @param cloudEvent        the cloud event to send
      * @param topic             the kafka topic to send the cloud event to
@@ -226,18 +225,17 @@ public class MessageListener {
      * @param cloudEvent        the cloud event to send
      * @param originalMessageId the id of the original message
      */
-    public void sendCloudEvent(MicoCloudEventImpl<JsonNode> cloudEvent, String originalMessageId) throws MicoCloudEventException, BatchMicoCloudEventException {
+    private void sendCloudEvent(MicoCloudEventImpl<JsonNode> cloudEvent, String originalMessageId) throws MicoCloudEventException, BatchMicoCloudEventException {
         List<List<String>> routingSlip = cloudEvent.getRoutingSlip().orElse(new ArrayList<>());
         if (routingSlip.size() > 0) {
             List<String> destinations = routingSlip.get(routingSlip.size() - 1);
             routingSlip.remove(routingSlip.size() - 1);
-            // Check if valid topic?
             ArrayList<MicoCloudEventException> exceptions = new ArrayList<>(destinations.size());
             for (String topic : destinations) {
                 try {
                     this.sendCloudEvent(cloudEvent, topic, originalMessageId);
                 } catch (MicoCloudEventException e) {
-                    // defer exception
+                    // defer exception handling
                     exceptions.add(e);
                 }
             }
@@ -272,7 +270,7 @@ public class MessageListener {
                 kafkaTemplate.send(kafkaConfig.getTestMessageOutputTopic(), cloudEvent);
             }
         } catch (Exception e) {
-            throw new MicoCloudEventException("An error occured while sending the cloud event.", e, cloudEvent);
+            throw new MicoCloudEventException("An error occurred while sending the cloud event.", e, cloudEvent);
         }
     }
 
@@ -291,22 +289,26 @@ public class MessageListener {
     /**
      * Sets the time, the correlationId and the Id field of a CloudEvent message if missing
      *
-     * @param cloudEvent
-     * @param originalMessageId
+     * @param cloudEvent        the cloud event to send
+     * @param originalMessageId the id of the original message
      */
     public void setMissingHeaderFields(MicoCloudEventImpl<JsonNode> cloudEvent, String originalMessageId) {
+        // Add random id if missing
         if (StringUtils.isEmpty(cloudEvent.getId())) {
             cloudEvent.setRandomId();
             log.debug("Added missing id '{}' to cloud event", cloudEvent.getId());
         }
+        // Add time if missing
         if (!cloudEvent.getTime().isPresent()) {
             cloudEvent.setTime(ZonedDateTime.now());
             log.debug("Added missing time '{}' to cloud event", cloudEvent.getTime().orElse(null));
         }
         if (!StringUtils.isEmpty(originalMessageId)) {
+            // Add correlation id if missing
             if (!cloudEvent.getCorrelationId().isPresent()) {
                 cloudEvent.setCorrelationId(originalMessageId);
             }
+            // Set 'created from' to the original message id only if necessary
             if (!cloudEvent.getId().equals(originalMessageId)) {
                 if (!cloudEvent.isErrorMessage().orElse(false) ||
                     (cloudEvent.isErrorMessage().orElse(false) && StringUtils.isEmpty(cloudEvent.getCreatedFrom().orElse("")))) {
@@ -314,12 +316,14 @@ public class MessageListener {
                 }
             }
         }
+        // Add source if it is an error message, e.g.: kafka://mico/transform-request
         if (cloudEvent.isErrorMessage().orElse(false)) {
             try {
                 URI source = new URI("kafka://" + this.kafkaConfig.getGroupId() + "/" + this.kafkaConfig.getInputTopic());
                 cloudEvent.setSource(source);
             } catch (URISyntaxException e) {
-                log.error("Could not construct a valid source attribute for the error message.", e);
+                log.error("Could not construct a valid source attribute for the error message. " +
+                    "Caused by: {}", e.getMessage());
             }
         }
     }

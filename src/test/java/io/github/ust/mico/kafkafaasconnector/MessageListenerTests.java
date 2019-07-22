@@ -131,13 +131,7 @@ public class MessageListenerTests {
         MicoCloudEventImpl<JsonNode> cloudEvent = CloudEventTestUtils.setPastExpiryDate(CloudEventTestUtils.basicCloudEvent(eventId));
         template.send(kafkaConfig.getInputTopic(), "0", cloudEvent);
 
-        ArrayList<ConsumerRecord<String, MicoCloudEventImpl<JsonNode>>> events = new ArrayList<>();
-        // consume all message send during this unit test
-        int lastSize = events.size();
-        while (events.size() == 0 || lastSize < events.size()) {
-            lastSize = events.size();
-            KafkaTestUtils.getRecords(consumer, 1000).forEach(events::add);
-        }
+        ArrayList<ConsumerRecord<String, MicoCloudEventImpl<JsonNode>>> events = MicoKafkaTestHelper.consumeAllMessages(consumer);
 
         // test for expired cloud event message on topics other then the input or error topic
         events.forEach(record -> {
@@ -192,13 +186,7 @@ public class MessageListenerTests {
         template.send(kafkaConfig.getInputTopic(), "0", cloudEventMultiStep);
         template.send(kafkaConfig.getInputTopic(), "0", cloudEventMultiDest);
 
-        ArrayList<ConsumerRecord<String, MicoCloudEventImpl<JsonNode>>> events = new ArrayList<>();
-        // consume all message send during this unit test
-        int lastSize = events.size();
-        while (events.size() == 0 || lastSize < events.size()) {
-            lastSize = events.size();
-            KafkaTestUtils.getRecords(consumer, 1000).forEach(events::add);
-        }
+        ArrayList<ConsumerRecord<String, MicoCloudEventImpl<JsonNode>>> events = MicoKafkaTestHelper.consumeAllMessages(consumer);
 
         events.forEach(record -> {
             assertNotEquals("There was a message on the error topic!", this.kafkaConfig.getInvalidMessageTopic(), record.topic());
@@ -401,6 +389,5 @@ public class MessageListenerTests {
         messageListener.setMissingHeaderFields(cloudEventSimple, cloudEventSimple.getId());
         assertThat("If the id stays the same the createdFrom attribute must be empty", cloudEventSimple.getCreatedFrom().orElse(null), is(nullValue()));
     }
-
 
 }

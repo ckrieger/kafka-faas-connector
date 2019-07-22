@@ -77,15 +77,17 @@ public class MicoCloudEventException extends Exception {
         error.setErrorTrace(this.getStackTraceAsString());
         if (this.sourceEvent != null) {
             try {
+                // Set 'created from' to the source id
                 String sourceId = this.sourceEvent.getId();
                 if (!StringUtils.isEmpty(sourceId)) {
                     error.setCreatedFrom(sourceId);
                 }
+                // Add the correlation id of the source event
                 Optional<String> correlationId = this.sourceEvent.getCorrelationId();
                 if (correlationId.isPresent()) {
                     error.setCorrelationId(correlationId.orElse(null));
                 }
-
+                // Add the data of the source event
                 JsonNode data = Json.MAPPER.convertValue(this.sourceEvent, JsonNode.class);
                 error.setData(data);
             } catch (Exception e) {
@@ -95,7 +97,7 @@ public class MicoCloudEventException extends Exception {
         return error;
     }
 
-    public String getStackTraceAsString() {
+    private String getStackTraceAsString() {
         StringWriter sw = new StringWriter();
         PrintWriter pw = new PrintWriter(sw);
         this.printStackTrace(pw);
