@@ -20,11 +20,9 @@
 package io.github.ust.mico.kafkafaasconnector.kafka;
 
 import com.fasterxml.jackson.annotation.JsonAnySetter;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
-
 import io.cloudevents.CloudEvent;
 import io.cloudevents.Extension;
 import lombok.AllArgsConstructor;
@@ -34,7 +32,10 @@ import lombok.experimental.Accessors;
 
 import java.net.URI;
 import java.time.ZonedDateTime;
-import java.util.*;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 
 /**
@@ -65,11 +66,14 @@ public class MicoCloudEventImpl<T> implements CloudEvent<T> {
     private List<Extension> extensions = new LinkedList<>();
 
     private String correlationId;
-    private String createFrom;
+    private String createdFrom;
     private List<RouteHistory> route;
     private LinkedList<List<String>> routingSlip;
     private Boolean isTestMessage;
     private String filterOutBeforeTopic;
+    private Boolean isErrorMessage;
+    private String errorMessage;
+    private String errorTrace;
     private ZonedDateTime expiryDate;
     private String sequenceId;
     private Integer sequenceNumber;
@@ -95,11 +99,14 @@ public class MicoCloudEventImpl<T> implements CloudEvent<T> {
             cloudEvent.data,
             cloudEvent.extensions,
             cloudEvent.correlationId,
-            cloudEvent.createFrom,
+            cloudEvent.createdFrom,
             cloudEvent.route,
             cloudEvent.routingSlip,
             cloudEvent.isTestMessage,
             cloudEvent.filterOutBeforeTopic,
+            cloudEvent.isErrorMessage,
+            cloudEvent.errorMessage,
+            cloudEvent.errorTrace,
             cloudEvent.expiryDate,
             cloudEvent.sequenceId,
             cloudEvent.sequenceNumber,
@@ -164,8 +171,8 @@ public class MicoCloudEventImpl<T> implements CloudEvent<T> {
         return Optional.ofNullable(correlationId);
     }
 
-    public Optional<String> getCreateFrom() {
-        return Optional.ofNullable(createFrom);
+    public Optional<String> getCreatedFrom() {
+        return Optional.ofNullable(createdFrom);
     }
 
     public Optional<List<RouteHistory>> getRoute() {
@@ -182,6 +189,18 @@ public class MicoCloudEventImpl<T> implements CloudEvent<T> {
 
     public Optional<String> getFilterOutBeforeTopic() {
         return Optional.ofNullable(filterOutBeforeTopic);
+    }
+
+    public Optional<Boolean> isErrorMessage() {
+        return Optional.ofNullable(isErrorMessage);
+    }
+
+    public Optional<String> getErrorMessage() {
+        return Optional.ofNullable(errorMessage);
+    }
+
+    public Optional<String> getErrorTrace() {
+        return Optional.ofNullable(errorTrace);
     }
 
     public Optional<ZonedDateTime> getExpiryDate() {

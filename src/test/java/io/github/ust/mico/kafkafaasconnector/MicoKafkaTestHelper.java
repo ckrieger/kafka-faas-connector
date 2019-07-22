@@ -18,10 +18,7 @@ import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer2;
 import org.springframework.kafka.test.EmbeddedKafkaBroker;
 import org.springframework.kafka.test.utils.KafkaTestUtils;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 
 import static io.github.ust.mico.kafkafaasconnector.TestConstants.DEFAULT_KAFKA_POLL_TIMEOUT;
@@ -30,9 +27,10 @@ public class MicoKafkaTestHelper {
 
     /**
      * Unsubscribes and closes the consumer. Needed after each test.
+     *
      * @param consumer
      */
-    public static void unsubscribeConsumer(Consumer consumer){
+    public static void unsubscribeConsumer(Consumer consumer) {
         consumer.unsubscribe();
         consumer.close();
     }
@@ -95,6 +93,7 @@ public class MicoKafkaTestHelper {
     /**
      * This method requests the topics which are acctually used by the broker.
      * It is nesseary because embeddedKafka.getTopics() does not contain a recent topic list
+     *
      * @return
      */
     public Set<String> requestActuallySetTopics() {
@@ -113,6 +112,7 @@ public class MicoKafkaTestHelper {
 
     /**
      * Contains all topics which are necessary for the tests
+     *
      * @return
      */
     public Set<String> getRequiredTopics() {
@@ -132,6 +132,7 @@ public class MicoKafkaTestHelper {
 
     /**
      * Generates a consumer based on the given topics
+     *
      * @return
      */
     public Consumer<String, MicoCloudEventImpl<JsonNode>> getKafkaConsumer(String... topics) {
@@ -142,6 +143,7 @@ public class MicoKafkaTestHelper {
 
     /**
      * Exchanges a message. It sends the provided message to the default input topic and waits {@link TestConstants#DEFAULT_KAFKA_POLL_TIMEOUT} long for a reply on the provided topic.
+     *
      * @param consumer
      * @param topic
      * @param cloudEventSimple
@@ -150,5 +152,22 @@ public class MicoKafkaTestHelper {
     public ConsumerRecord<String, MicoCloudEventImpl<JsonNode>> exchangeMessage(Consumer<String, MicoCloudEventImpl<JsonNode>> consumer, String topic, MicoCloudEventImpl<JsonNode> cloudEventSimple) {
         template.send(kafkaConfig.getInputTopic(), "0", cloudEventSimple);
         return KafkaTestUtils.getSingleRecord(consumer, topic, DEFAULT_KAFKA_POLL_TIMEOUT);
+    }
+
+    /**
+     * Consumes all messages send during the test execution
+     *
+     * @param consumer the {@link Consumer Kafka Consumer}
+     * @return the consumed messages
+     */
+    public static ArrayList<ConsumerRecord<String, MicoCloudEventImpl<JsonNode>>> consumeAllMessages(Consumer<String, MicoCloudEventImpl<JsonNode>> consumer) {
+        ArrayList<ConsumerRecord<String, MicoCloudEventImpl<JsonNode>>> events = new ArrayList<>();
+
+        int lastSize = events.size();
+        while (events.size() == 0 || lastSize < events.size()) {
+            lastSize = events.size();
+            KafkaTestUtils.getRecords(consumer, 1000).forEach(events::add);
+        }
+        return events;
     }
 }

@@ -2,6 +2,7 @@ package io.github.ust.mico.kafkafaasconnector;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.github.ust.mico.kafkafaasconnector.kafka.MicoCloudEventImpl;
+import lombok.extern.slf4j.Slf4j;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -11,13 +12,14 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 public class CloudEventTestUtils {
 
     /**
      * Build a basic cloud event with dummy entries and with the given id.
      *
      * @param id the cloud event id to use
-     * @return
+     * @return the cloud event
      */
     public static MicoCloudEventImpl<JsonNode> basicCloudEvent(String id) {
         try {
@@ -29,14 +31,13 @@ public class CloudEventTestUtils {
                 .setTime(ZonedDateTime.now());
         } catch (URISyntaxException e) {
             // Should never happen => no real error handling
-            e.printStackTrace();
-            return null;
+            log.error("Failed to created basic cloud event.", e);
+            return new MicoCloudEventImpl<>();
         }
     }
 
     /**
      * Build a basic cloud event with dummy entries and a random id.
-     *
      */
     public static MicoCloudEventImpl<JsonNode> basicCloudEventWithRandomId() {
         return basicCloudEvent("").setRandomId();
