@@ -192,7 +192,7 @@ public class MessageListener {
             log.debug("Faas call resulted in: '{}'", result);
             return result;
         } catch (MalformedURLException e) {
-            // TODO decide error behaviour and commit behaviour
+            throw new MicoCloudEventException("Failed to call faas-function. Caused by: " + e.getMessage(), cloudEvent);
         } catch (IllegalStateException e) {
             log.error("Failed to serialize CloudEvent '{}'.", cloudEvent);
             throw new MicoCloudEventException("Failed to serialize CloudEvent while calling the faas-function.", cloudEvent);
@@ -200,7 +200,6 @@ public class MessageListener {
             log.error("A client error occurred with http status:{} . These exceptions are triggered if the  FaaS function does not return 200 OK as the status code", e.getStatusCode(), e);
             throw new MicoCloudEventException(e.toString(), cloudEvent);
         }
-        return null;
     }
 
     /**

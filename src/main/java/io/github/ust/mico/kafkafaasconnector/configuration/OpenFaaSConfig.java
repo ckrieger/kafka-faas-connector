@@ -66,7 +66,7 @@ public class OpenFaaSConfig {
      * Get the url for the configured function using gateway and function.
      *
      * @return the constructed url
-     * @throws MalformedURLException
+     * @throws MalformedURLException if the url is invalid
      */
     public URL getFunctionUrl() throws MalformedURLException {
         try {
