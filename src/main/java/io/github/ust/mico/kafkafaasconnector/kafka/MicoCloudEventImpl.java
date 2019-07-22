@@ -68,7 +68,7 @@ public class MicoCloudEventImpl<T> implements CloudEvent<T> {
     private String correlationId;
     private String createdFrom;
     private List<RouteHistory> route;
-    private List<List<String>> routingSlip;
+    private LinkedList<List<String>> routingSlip;
     private Boolean isTestMessage;
     private String filterOutBeforeTopic;
     private Boolean isErrorMessage;
@@ -179,7 +179,7 @@ public class MicoCloudEventImpl<T> implements CloudEvent<T> {
         return Optional.ofNullable(route);
     }
 
-    public Optional<List<List<String>>> getRoutingSlip() {
+    public Optional<LinkedList<List<String>>> getRoutingSlip() {
         return Optional.ofNullable(routingSlip);
     }
 
