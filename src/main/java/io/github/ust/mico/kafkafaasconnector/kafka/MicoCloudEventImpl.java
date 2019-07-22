@@ -20,11 +20,9 @@
 package io.github.ust.mico.kafkafaasconnector.kafka;
 
 import com.fasterxml.jackson.annotation.JsonAnySetter;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
-
 import io.cloudevents.CloudEvent;
 import io.cloudevents.Extension;
 import lombok.AllArgsConstructor;
@@ -34,7 +32,10 @@ import lombok.experimental.Accessors;
 
 import java.net.URI;
 import java.time.ZonedDateTime;
-import java.util.*;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 
 /**

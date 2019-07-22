@@ -19,16 +19,6 @@
 
 package io.github.ust.mico.kafkafaasconnector.exception;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.util.Optional;
-
-import com.fasterxml.jackson.databind.JsonNode;
-
-import org.springframework.util.StringUtils;
-
-import io.cloudevents.json.Json;
-import io.github.ust.mico.kafkafaasconnector.kafka.MicoCloudEventImpl;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -39,7 +29,9 @@ public class BatchMicoCloudEventException extends Exception {
 
     private static final long serialVersionUID = 7526812870651753814L;
 
-    /** The CloudEvent that produced this error. */
+    /**
+     * The CloudEvent that produced this error.
+     */
     public final MicoCloudEventException[] exceptions;
 
     public BatchMicoCloudEventException(MicoCloudEventException[] exceptions) {

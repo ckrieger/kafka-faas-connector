@@ -19,17 +19,15 @@
 
 package io.github.ust.mico.kafkafaasconnector.exception;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.util.Optional;
-
 import com.fasterxml.jackson.databind.JsonNode;
-
-import org.springframework.util.StringUtils;
-
 import io.cloudevents.json.Json;
 import io.github.ust.mico.kafkafaasconnector.kafka.MicoCloudEventImpl;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.StringUtils;
+
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.Optional;
 
 /**
  * Base exception for CloudEvent errors.
@@ -39,7 +37,9 @@ public class MicoCloudEventException extends Exception {
 
     private static final long serialVersionUID = 7526812870651753814L;
 
-    /** The CloudEvent that produced this error. */
+    /**
+     * The CloudEvent that produced this error.
+     */
     private final MicoCloudEventImpl<JsonNode> sourceEvent;
 
     public MicoCloudEventException(MicoCloudEventImpl<JsonNode> sourceEvent) {
@@ -64,7 +64,7 @@ public class MicoCloudEventException extends Exception {
 
     /**
      * Serialize this exception into an error CloudEvent.
-     *
+     * <p>
      * The returned CloudEvent has an empty source that has to be set!
      *
      * @return the error CloudEvent
