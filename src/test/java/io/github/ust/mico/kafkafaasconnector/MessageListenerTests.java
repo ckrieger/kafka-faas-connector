@@ -80,6 +80,9 @@ public class MessageListenerTests {
     @Autowired
     KafkaMessageSender kafkaMessageSender;
 
+    @Autowired
+    CloudEventManipulator cloudEventManipulator;
+
     private MicoKafkaTestHelper micoKafkaTestHelper;
 
     @PostConstruct
@@ -379,7 +382,7 @@ public class MessageListenerTests {
     public void testCreatedFrom() {
         MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
         final String originalMessageId = "OriginalMessageId";
-        kafkaMessageSender.setMissingHeaderFields(cloudEventSimple, originalMessageId);
+        cloudEventManipulator.setMissingHeaderFields(cloudEventSimple, originalMessageId);
         assertThat("If the id changes the createdFrom attribute has to be set", cloudEventSimple.getCreatedFrom().orElse(null), is(originalMessageId));
     }
 
@@ -389,7 +392,7 @@ public class MessageListenerTests {
     @Test
     public void testNotCreatedFrom() {
         MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
-        kafkaMessageSender.setMissingHeaderFields(cloudEventSimple, cloudEventSimple.getId());
+        cloudEventManipulator.setMissingHeaderFields(cloudEventSimple, cloudEventSimple.getId());
         assertThat("If the id stays the same the createdFrom attribute must be empty", cloudEventSimple.getCreatedFrom().orElse(null), is(nullValue()));
     }
 

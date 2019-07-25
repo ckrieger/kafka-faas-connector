@@ -20,8 +20,8 @@ import java.util.List;
 @Service
 public class CloudEventManipulator {
 
-    protected static final String ROUTE_HISTORY_TYPE_TOPIC = "topic";
-    protected static final String ROUTE_HISTORY_TYPE_FAAS_FUNCTION = "faas-function";
+    private static final String ROUTE_HISTORY_TYPE_TOPIC = "topic";
+    private static final String ROUTE_HISTORY_TYPE_FAAS_FUNCTION = "faas-function";
 
     @Autowired
     private KafkaConfig kafkaConfig;
@@ -47,9 +47,9 @@ public class CloudEventManipulator {
      */
     public MicoCloudEventImpl<JsonNode> updateRouteHistory(MicoCloudEventImpl<JsonNode> cloudEvent, String id, String type) {
         RouteHistory routingStep = new RouteHistory(type, id, ZonedDateTime.now());
-        List<RouteHistory> history = cloudEvent.getRoute().map(route -> new ArrayList<>(route)).orElse(new ArrayList<>());
+        List<RouteHistory> history = cloudEvent.getRoute().map(ArrayList::new).orElse(new ArrayList<>());
         history.add(routingStep);
-        return new MicoCloudEventImpl<JsonNode>(cloudEvent).setRoute(history);
+        return new MicoCloudEventImpl<>(cloudEvent).setRoute(history);
     }
 
     /**
@@ -71,38 +71,80 @@ public class CloudEventManipulator {
      * @param originalMessageId the id of the original message
      */
     public void setMissingHeaderFields(MicoCloudEventImpl<JsonNode> cloudEvent, String originalMessageId) {
-        // Add random id if missing
-        if (StringUtils.isEmpty(cloudEvent.getId())) {
-            cloudEvent.setRandomId();
-            log.debug("Added missing id '{}' to cloud event", cloudEvent.getId());
+
+        setMissingId(cloudEvent);
+        addMissingTime(cloudEvent);
+
+        if (!StringUtils.isEmpty(originalMessageId)) {
+            setMissingCorrelationId(cloudEvent, originalMessageId);
+            setMissingCreatedFrom(cloudEvent, originalMessageId);
         }
-        // Add time if missing
+
+        // Add source if it is an error message, e.g.: kafka://mico/transform-request
+        if (cloudEvent.isErrorMessage().orElse(false)) {
+            setMissingSource(cloudEvent);
+        }
+    }
+
+    /**
+     * Sets the source field of an cloud event message to "kafka://{groupId}/{inputTopic}".
+     * @param cloudEvent
+     */
+    private void setMissingSource(MicoCloudEventImpl<JsonNode> cloudEvent) {
+        try {
+            URI source = new URI("kafka://" + this.kafkaConfig.getGroupId() + "/" + this.kafkaConfig.getInputTopic());
+            cloudEvent.setSource(source);
+        } catch (URISyntaxException e) {
+            log.error("Could not construct a valid source attribute for the error message. " +
+                "Caused by: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Adds the createdFrom field to the message if the messageId is different from the originalMessageId and
+     * the createdFrom field is empty.
+     * @param cloudEvent
+     * @param originalMessageId
+     */
+    private void setMissingCreatedFrom(MicoCloudEventImpl<JsonNode> cloudEvent, String originalMessageId) {
+        if (!cloudEvent.getId().equals(originalMessageId)) {
+            if (!cloudEvent.isErrorMessage().orElse(false) ||
+                (cloudEvent.isErrorMessage().orElse(false) && StringUtils.isEmpty(cloudEvent.getCreatedFrom().orElse("")))) {
+                cloudEvent.setCreatedFrom(originalMessageId);
+            }
+        }
+    }
+
+    /**
+     * Sets the message correlationId to the originalMessageId if the correlationId is missing
+     * @param cloudEvent
+     * @param originalMessageId
+     */
+    private void setMissingCorrelationId(MicoCloudEventImpl<JsonNode> cloudEvent, String originalMessageId) {
+        if (!cloudEvent.getCorrelationId().isPresent()) {
+            cloudEvent.setCorrelationId(originalMessageId);
+        }
+    }
+
+    /**
+     * Adds the required field 'time' if it is missing.
+     * @param cloudEvent
+     */
+    private void addMissingTime(MicoCloudEventImpl<JsonNode> cloudEvent) {
         if (!cloudEvent.getTime().isPresent()) {
             cloudEvent.setTime(ZonedDateTime.now());
             log.debug("Added missing time '{}' to cloud event", cloudEvent.getTime().orElse(null));
         }
-        if (!StringUtils.isEmpty(originalMessageId)) {
-            // Add correlation id if missing
-            if (!cloudEvent.getCorrelationId().isPresent()) {
-                cloudEvent.setCorrelationId(originalMessageId);
-            }
-            // Set 'created from' to the original message id only if necessary
-            if (!cloudEvent.getId().equals(originalMessageId)) {
-                if (!cloudEvent.isErrorMessage().orElse(false) ||
-                    (cloudEvent.isErrorMessage().orElse(false) && StringUtils.isEmpty(cloudEvent.getCreatedFrom().orElse("")))) {
-                    cloudEvent.setCreatedFrom(originalMessageId);
-                }
-            }
-        }
-        // Add source if it is an error message, e.g.: kafka://mico/transform-request
-        if (cloudEvent.isErrorMessage().orElse(false)) {
-            try {
-                URI source = new URI("kafka://" + this.kafkaConfig.getGroupId() + "/" + this.kafkaConfig.getInputTopic());
-                cloudEvent.setSource(source);
-            } catch (URISyntaxException e) {
-                log.error("Could not construct a valid source attribute for the error message. " +
-                    "Caused by: {}", e.getMessage());
-            }
+    }
+
+    /**
+     * Sets a missing message id to a randomly generated one.
+     * @param cloudEvent
+     */
+    private void setMissingId(MicoCloudEventImpl<JsonNode> cloudEvent) {
+        if (StringUtils.isEmpty(cloudEvent.getId())) {
+            cloudEvent.setRandomId();
+            log.debug("Added missing id '{}' to cloud event", cloudEvent.getId());
         }
     }
 
