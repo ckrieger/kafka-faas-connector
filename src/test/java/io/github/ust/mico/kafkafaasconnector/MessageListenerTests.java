@@ -77,6 +77,9 @@ public class MessageListenerTests {
     @Autowired
     MessageListener messageListener;
 
+    @Autowired
+    KafkaMessageSender kafkaMessageSender;
+
     private MicoKafkaTestHelper micoKafkaTestHelper;
 
     @PostConstruct
@@ -222,7 +225,7 @@ public class MessageListenerTests {
         cloudEventSimple.setFilterOutBeforeTopic(testFilterTopic);
         cloudEventSimple.setIsTestMessage(true);
 
-        assertTrue("The message should be filtered out", messageListener.isTestMessageCompleted(cloudEventSimple, testFilterTopic));
+        assertTrue("The message should be filtered out", kafkaMessageSender.isTestMessageCompleted(cloudEventSimple, testFilterTopic));
     }
 
     /**
@@ -234,7 +237,7 @@ public class MessageListenerTests {
         String testFilterTopic = "TestFilterTopic";
         cloudEventSimple.setFilterOutBeforeTopic(testFilterTopic);
 
-        assertFalse("The message not should be filtered out, because it is not a test message", messageListener.isTestMessageCompleted(cloudEventSimple, testFilterTopic));
+        assertFalse("The message not should be filtered out, because it is not a test message", kafkaMessageSender.isTestMessageCompleted(cloudEventSimple, testFilterTopic));
     }
 
     /**
@@ -247,7 +250,7 @@ public class MessageListenerTests {
         cloudEventSimple.setFilterOutBeforeTopic(testFilterTopic);
         cloudEventSimple.setIsTestMessage(true);
 
-        assertFalse("The message not should be filtered out, because it has not reached the filter out topic", messageListener.isTestMessageCompleted(cloudEventSimple, testFilterTopic + "Difference"));
+        assertFalse("The message not should be filtered out, because it has not reached the filter out topic", kafkaMessageSender.isTestMessageCompleted(cloudEventSimple, testFilterTopic + "Difference"));
     }
 
     /**
@@ -376,7 +379,7 @@ public class MessageListenerTests {
     public void testCreatedFrom() {
         MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
         final String originalMessageId = "OriginalMessageId";
-        messageListener.setMissingHeaderFields(cloudEventSimple, originalMessageId);
+        kafkaMessageSender.setMissingHeaderFields(cloudEventSimple, originalMessageId);
         assertThat("If the id changes the createdFrom attribute has to be set", cloudEventSimple.getCreatedFrom().orElse(null), is(originalMessageId));
     }
 
@@ -386,7 +389,7 @@ public class MessageListenerTests {
     @Test
     public void testNotCreatedFrom() {
         MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
-        messageListener.setMissingHeaderFields(cloudEventSimple, cloudEventSimple.getId());
+        kafkaMessageSender.setMissingHeaderFields(cloudEventSimple, cloudEventSimple.getId());
         assertThat("If the id stays the same the createdFrom attribute must be empty", cloudEventSimple.getCreatedFrom().orElse(null), is(nullValue()));
     }
 
