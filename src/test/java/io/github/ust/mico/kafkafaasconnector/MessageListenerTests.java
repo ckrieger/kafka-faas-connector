@@ -78,6 +78,9 @@ public class MessageListenerTests {
     MessageListener messageListener;
 
     @Autowired
+    FaasController faasController;
+
+    @Autowired
     KafkaMessageSender kafkaMessageSender;
 
     @Autowired
@@ -100,7 +103,7 @@ public class MessageListenerTests {
 
     @Test
     public void parseEmptyFunctionResult() throws MicoCloudEventException {
-        ArrayList<MicoCloudEventImpl<JsonNode>> result = this.messageListener.parseFunctionResult("[]", null);
+        ArrayList<MicoCloudEventImpl<JsonNode>> result = this.faasController.parseFunctionResult("[]", null);
         assertNotNull(result);
         assertEquals(0, result.size());
     }
@@ -113,7 +116,7 @@ public class MessageListenerTests {
         input.add(cloudEvent1);
         input.add(cloudEvent2);
         String functionInput = Json.encode(input);
-        ArrayList<MicoCloudEventImpl<JsonNode>> result = this.messageListener.parseFunctionResult(functionInput, null);
+        ArrayList<MicoCloudEventImpl<JsonNode>> result = this.faasController.parseFunctionResult(functionInput, null);
         assertNotNull(result);
         assertEquals(2, result.size());
         assertEquals(result.get(0).getId(), cloudEvent1.getId());
