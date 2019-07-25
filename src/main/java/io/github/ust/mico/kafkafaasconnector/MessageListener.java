@@ -58,23 +58,35 @@ public class MessageListener {
         String originalMessageId = cloudEvent.getId();
 
         try {
-            if (!cloudEvent.getData().isPresent()) {
-                // data is entirely optional
-                log.debug("Received message does not include any data!");
-            }
-            if (cloudEvent.getExpiryDate().map(exp -> exp.compareTo(ZonedDateTime.now()) < 0).orElse(false)) {
-                log.debug("Received expired message!");
-                throw new MicoCloudEventException("CloudEvent has already expired!", cloudEvent);
-            } else {
-                List<MicoCloudEventImpl<JsonNode>> events = faasController.callFaasFunction(cloudEvent);
-                for (MicoCloudEventImpl<JsonNode> event : events) {
-                    // individually wrap each cloud event in the results for sending
-                    kafkaMessageSender.safeSendCloudEvent(event, originalMessageId);
-                }
-            }
+            handleExpiredMessage(cloudEvent);
+
+            List<MicoCloudEventImpl<JsonNode>> events = faasController.callFaasFunction(cloudEvent);
+            events.forEach(event-> kafkaMessageSender.safeSendCloudEvent(event, originalMessageId));
+
         } catch (MicoCloudEventException e) {
             kafkaMessageSender.safeSendErrorMessage(e.getErrorEvent(), this.kafkaConfig.getInvalidMessageTopic(), originalMessageId);
         }
+    }
+
+    /**
+     * Logs expired messages and throw a {@code MicoCloudEventException} if the message is expired.
+     * @param cloudEvent
+     * @throws MicoCloudEventException
+     */
+    private void handleExpiredMessage(MicoCloudEventImpl<JsonNode> cloudEvent) throws MicoCloudEventException {
+        if (isMessageExpired(cloudEvent)) {
+            log.debug("Received expired message!");
+            throw new MicoCloudEventException("CloudEvent has already expired!", cloudEvent);
+        }
+    }
+
+    /**
+     * Checks if the message is expired
+     * @param cloudEvent
+     * @return
+     */
+    private boolean isMessageExpired(MicoCloudEventImpl<JsonNode> cloudEvent) {
+        return cloudEvent.getExpiryDate().map(exp -> exp.compareTo(ZonedDateTime.now()) < 0).orElse(false);
     }
 
 }

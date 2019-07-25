@@ -47,6 +47,11 @@ public class CloudEventDeserializer implements Deserializer<MicoCloudEventImpl<J
             MicoCloudEventImpl<JsonNode> micoCloudEvent = Json.decodeValue(message, new TypeReference<MicoCloudEventImpl<JsonNode>>() {
             });
             log.debug("Deserialized micoCloudEvent '{}' on topic: '{}'",micoCloudEvent.toString(),topic);
+
+            if (!micoCloudEvent.getData().isPresent()) {
+                // data is entirely optional
+                log.debug("Received message does not include any data!");
+            }
             return micoCloudEvent;
         } catch (IllegalStateException e) {
             throw new SerializationException("Could not create an CloudEvent message", e);
