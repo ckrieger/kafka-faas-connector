@@ -50,8 +50,6 @@ import java.util.List;
 @Component
 public class MessageListener {
 
-    protected static final String CONTENT_TYPE = "application/json";
-
     @Autowired
     private RestTemplate restTemplate;
 
@@ -63,6 +61,9 @@ public class MessageListener {
 
     @Autowired
     private KafkaMessageSender kafkaMessageSender;
+
+    @Autowired
+    private CloudEventManipulator cloudEventManipulator;
 
     /**
      * Entry point for incoming messages from kafka.
@@ -100,20 +101,6 @@ public class MessageListener {
         }
     }
 
-
-
-    /**
-     * Add a function call routing step to the routing history of the cloud event.
-     *
-     * @param cloudEvent the cloud event to update
-     * @param functionId the id of the function applied to the cloud event next
-     * @return the updated cloud event
-     */
-    public MicoCloudEventImpl<JsonNode> updateRouteHistoryWithFunctionCall(MicoCloudEventImpl<JsonNode> cloudEvent, String functionId) {
-        return kafkaMessageSender.updateRouteHistory(cloudEvent, functionId, "faas-function");
-    }
-
-
     /**
      * Synchronously call the configured openFaaS function.
      *
@@ -124,7 +111,7 @@ public class MessageListener {
         try {
             URL functionUrl = openFaaSConfig.getFunctionUrl();
             log.debug("Start request to function '{}'", functionUrl.toString());
-            String cloudEventSerialized = Json.encode(this.updateRouteHistoryWithFunctionCall(cloudEvent, openFaaSConfig.getFunctionName()));
+            String cloudEventSerialized = Json.encode(cloudEventManipulator.updateRouteHistoryWithFunctionCall(cloudEvent, openFaaSConfig.getFunctionName()));
             log.debug("Serialized cloud event: {}", cloudEventSerialized);
             String result = restTemplate.postForObject(functionUrl.toString(), cloudEventSerialized, String.class);
             log.debug("Faas call resulted in: '{}'", result);
