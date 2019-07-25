@@ -25,11 +25,14 @@ import io.github.ust.mico.kafkafaasconnector.MessageProcessing.CloudEventManipul
 import io.github.ust.mico.kafkafaasconnector.MessageProcessing.FaasController;
 import io.github.ust.mico.kafkafaasconnector.MessageProcessing.KafkaMessageSender;
 import io.github.ust.mico.kafkafaasconnector.configuration.KafkaConfig;
+import io.github.ust.mico.kafkafaasconnector.configuration.OpenFaaSConfig;
 import io.github.ust.mico.kafkafaasconnector.exception.MicoCloudEventException;
+import io.github.ust.mico.kafkafaasconnector.kafka.CloudEventDeserializer;
 import io.github.ust.mico.kafkafaasconnector.kafka.MicoCloudEventImpl;
 import io.github.ust.mico.kafkafaasconnector.kafka.RouteHistory;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.errors.SerializationException;
 import org.exparity.hamcrest.date.ZonedDateTimeMatchers;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -47,6 +50,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import javax.annotation.PostConstruct;
+import java.nio.charset.Charset;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -400,6 +404,27 @@ public class MessageListenerTests {
         MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
         cloudEventManipulator.setMissingHeaderFields(cloudEventSimple, cloudEventSimple.getId());
         assertThat("If the id stays the same the createdFrom attribute must be empty", cloudEventSimple.getCreatedFrom().orElse(null), is(nullValue()));
+    }
+
+
+    /**
+     * Tests message deserialization with a broken message
+     */
+    @Test(expected = SerializationException.class)
+    public void testBrokenMessageDeserialization(){
+        CloudEventDeserializer cloudEventDeserializer = new CloudEventDeserializer();
+        String invalidMessage = "InvalidMessage";
+        cloudEventDeserializer.deserialize("",invalidMessage.getBytes(Charset.defaultCharset()));
+    }
+
+    /**
+     * Tests message serialization with a empty but not null message
+     */
+    @Test(expected = SerializationException.class)
+    public void testEmptyMessageSerialization(){
+        CloudEventDeserializer cloudEventDeserializer = new CloudEventDeserializer();
+        byte[] message = {};
+        cloudEventDeserializer.deserialize("",message);
     }
 
 }
