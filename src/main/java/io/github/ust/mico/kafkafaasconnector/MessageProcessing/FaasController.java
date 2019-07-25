@@ -1,4 +1,4 @@
-package io.github.ust.mico.kafkafaasconnector;
+package io.github.ust.mico.kafkafaasconnector.MessageProcessing;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
