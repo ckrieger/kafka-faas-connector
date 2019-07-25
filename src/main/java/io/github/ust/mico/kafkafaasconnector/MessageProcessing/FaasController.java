@@ -58,8 +58,9 @@ public class FaasController {
      */
     public List<MicoCloudEventImpl<JsonNode>> callFaasFunction(MicoCloudEventImpl<JsonNode> cloudEvent) throws MicoCloudEventException {
         if (!this.openFaaSConfig.isSkipFunctionCall()) {
+            URL functionUrl = null;
             try {
-                URL functionUrl = openFaaSConfig.getFunctionUrl();
+                functionUrl = openFaaSConfig.getFunctionUrl();
                 log.debug("Start request to function '{}'", functionUrl.toString());
                 String cloudEventSerialized = Json.encode(cloudEventManipulator.updateRouteHistoryWithFunctionCall(cloudEvent, openFaaSConfig.getFunctionName()));
                 log.debug("Serialized cloud event: {}", cloudEventSerialized);
@@ -72,7 +73,7 @@ public class FaasController {
                 log.error("Failed to serialize CloudEvent '{}'.", cloudEvent);
                 throw new MicoCloudEventException("Failed to serialize CloudEvent while calling the faas-function.", cloudEvent);
             } catch (HttpStatusCodeException e) {
-                log.error("A client error occurred with http status:{} . These exceptions are triggered if the  FaaS function does not return 200 OK as the status code", e.getStatusCode(), e);
+                log.error("FaaS function '{}' returned http status code '{}'. Expected 200 OK.", functionUrl, e.getStatusCode());
                 throw new MicoCloudEventException(e.toString(), cloudEvent);
             }
         } else {
