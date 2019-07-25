@@ -25,7 +25,6 @@ import io.github.ust.mico.kafkafaasconnector.MessageProcessing.CloudEventManipul
 import io.github.ust.mico.kafkafaasconnector.MessageProcessing.FaasController;
 import io.github.ust.mico.kafkafaasconnector.MessageProcessing.KafkaMessageSender;
 import io.github.ust.mico.kafkafaasconnector.configuration.KafkaConfig;
-import io.github.ust.mico.kafkafaasconnector.configuration.OpenFaaSConfig;
 import io.github.ust.mico.kafkafaasconnector.exception.MicoCloudEventException;
 import io.github.ust.mico.kafkafaasconnector.kafka.CloudEventDeserializer;
 import io.github.ust.mico.kafkafaasconnector.kafka.MicoCloudEventImpl;
@@ -99,13 +98,13 @@ public class MessageListenerTests {
     public void before() {
         this.micoKafkaTestHelper = new MicoKafkaTestHelper(embeddedKafka, kafkaConfig);
         template = this.micoKafkaTestHelper.getTemplate();
-        //We need to add them outside of the rule because the autowired kakfaConfig is not accessible from the static rule
-        //We can not use @BeforeClass which is only executed once because it has to be static and we do not have access to the autowired kakfaConfig
+        //We need to add them outside of the rule because the autowired kafkaConfig is not accessible from the static rule
+        //We can not use @BeforeClass which is only executed once because it has to be static and we do not have access to the autowired kafkaConfig
 
         Set<String> requiredTopics = this.micoKafkaTestHelper.getRequiredTopics();
         Set<String> alreadySetTopics = this.micoKafkaTestHelper.requestActuallySetTopics();
         requiredTopics.removeAll(alreadySetTopics);
-        requiredTopics.forEach(topic -> embeddedKafka.addTopics(topic));
+        requiredTopics.forEach(embeddedKafka::addTopics);
     }
 
     @Test
@@ -411,20 +410,20 @@ public class MessageListenerTests {
      * Tests message deserialization with a broken message
      */
     @Test(expected = SerializationException.class)
-    public void testBrokenMessageDeserialization(){
+    public void testBrokenMessageDeserialization() {
         CloudEventDeserializer cloudEventDeserializer = new CloudEventDeserializer();
         String invalidMessage = "InvalidMessage";
-        cloudEventDeserializer.deserialize("",invalidMessage.getBytes(Charset.defaultCharset()));
+        cloudEventDeserializer.deserialize("", invalidMessage.getBytes(Charset.defaultCharset()));
     }
 
     /**
      * Tests message serialization with a empty but not null message
      */
     @Test(expected = SerializationException.class)
-    public void testEmptyMessageSerialization(){
+    public void testEmptyMessageSerialization() {
         CloudEventDeserializer cloudEventDeserializer = new CloudEventDeserializer();
         byte[] message = {};
-        cloudEventDeserializer.deserialize("",message);
+        cloudEventDeserializer.deserialize("", message);
     }
 
 }

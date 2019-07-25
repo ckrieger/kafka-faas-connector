@@ -28,9 +28,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+
 @Slf4j
 @Service
 public class KafkaMessageSender {
@@ -43,7 +45,6 @@ public class KafkaMessageSender {
 
     @Autowired
     private CloudEventManipulator cloudEventManipulator;
-
 
     /**
      * Send a cloud event using the sendCloudEvent method.
@@ -124,7 +125,6 @@ public class KafkaMessageSender {
         return cloudEvent.isTestMessage().orElse(false) && topic.equals(cloudEvent.getFilterOutBeforeTopic().orElse(null));
     }
 
-
     /**
      * Send cloud event to default topic or topic(s) next in the routingSlip.
      *
@@ -152,6 +152,5 @@ public class KafkaMessageSender {
             this.sendCloudEvent(cloudEvent, this.kafkaConfig.getOutputTopic(), originalMessageId);
         }
     }
-
 
 }
