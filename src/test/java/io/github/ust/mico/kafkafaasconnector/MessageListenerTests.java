@@ -83,15 +83,6 @@ public class MessageListenerTests {
     @Autowired
     MessageListener messageListener;
 
-    @Autowired
-    FaasController faasController;
-
-    @Autowired
-    KafkaMessageSender kafkaMessageSender;
-
-    @Autowired
-    CloudEventManipulator cloudEventManipulator;
-
     private MicoKafkaTestHelper micoKafkaTestHelper;
 
     @PostConstruct
@@ -105,32 +96,6 @@ public class MessageListenerTests {
         Set<String> alreadySetTopics = this.micoKafkaTestHelper.requestActuallySetTopics();
         requiredTopics.removeAll(alreadySetTopics);
         requiredTopics.forEach(topic -> embeddedKafka.addTopics(topic));
-    }
-
-    @Test
-    public void parseEmptyFunctionResult() throws MicoCloudEventException {
-        ArrayList<MicoCloudEventImpl<JsonNode>> result = this.faasController.parseFunctionResult("[]", null);
-        assertNotNull(result);
-        assertEquals(0, result.size());
-    }
-
-    @Test
-    public void parseFunctionResult() throws MicoCloudEventException {
-        MicoCloudEventImpl<JsonNode> cloudEvent1 = CloudEventTestUtils.basicCloudEvent("CloudEvent1");
-        MicoCloudEventImpl<JsonNode> cloudEvent2 = CloudEventTestUtils.basicCloudEvent("CloudEvent2");
-        ArrayList<MicoCloudEventImpl<JsonNode>> input = new ArrayList<>();
-        input.add(cloudEvent1);
-        input.add(cloudEvent2);
-        String functionInput = Json.encode(input);
-        ArrayList<MicoCloudEventImpl<JsonNode>> result = this.faasController.parseFunctionResult(functionInput, null);
-        assertNotNull(result);
-        assertEquals(2, result.size());
-        assertEquals(result.get(0).getId(), cloudEvent1.getId());
-        assertEquals(result.get(0).getSource(), cloudEvent1.getSource());
-        assertEquals(result.get(0).getType(), cloudEvent1.getType());
-        assertTrue(result.get(0).getTime().get().isEqual(cloudEvent1.getTime().get()));
-        assertEquals(result.get(1).getId(), cloudEvent2.getId());
-        assertEquals(result.get(0).getRoutingSlip(), cloudEvent2.getRoutingSlip());
     }
 
     /**
@@ -224,45 +189,6 @@ public class MessageListenerTests {
 
         // Don't forget to detach the consumer from kafka!
         MicoKafkaTestHelper.unsubscribeConsumer(consumer);
-    }
-
-    /**
-     * Tests if the need to filter out a message with "isTestMessage = true" and a "FilterOutBeforeTopic = message destination"
-     * is correctly recognized.
-     */
-    @Test
-    public void testFilterOutCheck() {
-        MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
-        String testFilterTopic = "TestFilterTopic";
-        cloudEventSimple.setFilterOutBeforeTopic(testFilterTopic);
-        cloudEventSimple.setIsTestMessage(true);
-
-        assertTrue("The message should be filtered out", kafkaMessageSender.isTestMessageCompleted(cloudEventSimple, testFilterTopic));
-    }
-
-    /**
-     * Only "FilterOutBeforeTopic = message destination" is not enough to filter a message out. It needs to be a test message.
-     */
-    @Test
-    public void testNotFilterOutCheck() {
-        MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
-        String testFilterTopic = "TestFilterTopic";
-        cloudEventSimple.setFilterOutBeforeTopic(testFilterTopic);
-
-        assertFalse("The message not should be filtered out, because it is not a test message", kafkaMessageSender.isTestMessageCompleted(cloudEventSimple, testFilterTopic));
-    }
-
-    /**
-     * Tests if a test message with "FilterOutBeforeTopic != message destination" will wrongly be filtered out.
-     */
-    @Test
-    public void testNotFilterOutCheckDifferentTopics() {
-        MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
-        String testFilterTopic = "TestFilterTopic";
-        cloudEventSimple.setFilterOutBeforeTopic(testFilterTopic);
-        cloudEventSimple.setIsTestMessage(true);
-
-        assertFalse("The message not should be filtered out, because it has not reached the filter out topic", kafkaMessageSender.isTestMessageCompleted(cloudEventSimple, testFilterTopic + "Difference"));
     }
 
     /**
@@ -384,46 +310,6 @@ public class MessageListenerTests {
         MicoKafkaTestHelper.unsubscribeConsumer(consumer);
     }
 
-    /**
-     * Tests if the createdFrom attribute is set correctly
-     */
-    @Test
-    public void testCreatedFrom() {
-        MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
-        final String originalMessageId = "OriginalMessageId";
-        cloudEventManipulator.setMissingHeaderFields(cloudEventSimple, originalMessageId);
-        assertThat("If the id changes the createdFrom attribute has to be set", cloudEventSimple.getCreatedFrom().orElse(null), is(originalMessageId));
-    }
 
-    /**
-     * Tests if the createdFrom attribute is omitted if it is not necessary
-     */
-    @Test
-    public void testNotCreatedFrom() {
-        MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
-        cloudEventManipulator.setMissingHeaderFields(cloudEventSimple, cloudEventSimple.getId());
-        assertThat("If the id stays the same the createdFrom attribute must be empty", cloudEventSimple.getCreatedFrom().orElse(null), is(nullValue()));
-    }
-
-
-    /**
-     * Tests message deserialization with a broken message
-     */
-    @Test(expected = SerializationException.class)
-    public void testBrokenMessageDeserialization(){
-        CloudEventDeserializer cloudEventDeserializer = new CloudEventDeserializer();
-        String invalidMessage = "InvalidMessage";
-        cloudEventDeserializer.deserialize("",invalidMessage.getBytes(Charset.defaultCharset()));
-    }
-
-    /**
-     * Tests message serialization with a empty but not null message
-     */
-    @Test(expected = SerializationException.class)
-    public void testEmptyMessageSerialization(){
-        CloudEventDeserializer cloudEventDeserializer = new CloudEventDeserializer();
-        byte[] message = {};
-        cloudEventDeserializer.deserialize("",message);
-    }
 
 }
