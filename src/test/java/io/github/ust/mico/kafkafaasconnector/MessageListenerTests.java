@@ -22,12 +22,18 @@ package io.github.ust.mico.kafkafaasconnector;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.cloudevents.json.Json;
+import io.github.ust.mico.kafkafaasconnector.configuration.OpenFaaSConfig;
+import io.github.ust.mico.kafkafaasconnector.messageprocessing.CloudEventManipulator;
+import io.github.ust.mico.kafkafaasconnector.messageprocessing.FaasController;
+import io.github.ust.mico.kafkafaasconnector.messageprocessing.KafkaMessageSender;
 import io.github.ust.mico.kafkafaasconnector.configuration.KafkaConfig;
 import io.github.ust.mico.kafkafaasconnector.exception.MicoCloudEventException;
+import io.github.ust.mico.kafkafaasconnector.kafka.CloudEventDeserializer;
 import io.github.ust.mico.kafkafaasconnector.kafka.MicoCloudEventImpl;
 import io.github.ust.mico.kafkafaasconnector.kafka.RouteHistory;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.errors.SerializationException;
 import org.exparity.hamcrest.date.ZonedDateTimeMatchers;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -45,6 +51,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import javax.annotation.PostConstruct;
+import java.nio.charset.Charset;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -81,17 +88,20 @@ public class MessageListenerTests {
 
     private MicoKafkaTestHelper micoKafkaTestHelper;
 
+    @Autowired
+    OpenFaaSConfig openFaaSConfig;
+
     @PostConstruct
     public void before() {
         this.micoKafkaTestHelper = new MicoKafkaTestHelper(embeddedKafka, kafkaConfig);
         template = this.micoKafkaTestHelper.getTemplate();
-        //We need to add them outside of the rule because the autowired kakfaConfig is not accessible from the static rule
-        //We can not use @BeforeClass which is only executed once because it has to be static and we do not have access to the autowired kakfaConfig
+        //We need to add them outside of the rule because the autowired kafkaConfig is not accessible from the static rule
+        //We can not use @BeforeClass which is only executed once because it has to be static and we do not have access to the autowired kafkaConfig
 
         Set<String> requiredTopics = this.micoKafkaTestHelper.getRequiredTopics();
         Set<String> alreadySetTopics = this.micoKafkaTestHelper.requestActuallySetTopics();
         requiredTopics.removeAll(alreadySetTopics);
-        requiredTopics.forEach(topic -> embeddedKafka.addTopics(topic));
+        requiredTopics.forEach(embeddedKafka::addTopics);
     }
 
     @Test
@@ -104,32 +114,6 @@ public class MessageListenerTests {
         Map<String, JsonNode> extensions = parsed.getExtensionsForSerializer();
         assertEquals(1, extensions.size());
         assertTrue(extensions.containsKey("customKey"));
-    }
-
-    @Test
-    public void parseEmptyFunctionResult() throws MicoCloudEventException {
-        ArrayList<MicoCloudEventImpl<JsonNode>> result = this.messageListener.parseFunctionResult("[]", null);
-        assertNotNull(result);
-        assertEquals(0, result.size());
-    }
-
-    @Test
-    public void parseFunctionResult() throws MicoCloudEventException {
-        MicoCloudEventImpl<JsonNode> cloudEvent1 = CloudEventTestUtils.basicCloudEvent("CloudEvent1");
-        MicoCloudEventImpl<JsonNode> cloudEvent2 = CloudEventTestUtils.basicCloudEvent("CloudEvent2");
-        ArrayList<MicoCloudEventImpl<JsonNode>> input = new ArrayList<>();
-        input.add(cloudEvent1);
-        input.add(cloudEvent2);
-        String functionInput = Json.encode(input);
-        ArrayList<MicoCloudEventImpl<JsonNode>> result = this.messageListener.parseFunctionResult(functionInput, null);
-        assertNotNull(result);
-        assertEquals(2, result.size());
-        assertEquals(result.get(0).getId(), cloudEvent1.getId());
-        assertEquals(result.get(0).getSource(), cloudEvent1.getSource());
-        assertEquals(result.get(0).getType(), cloudEvent1.getType());
-        assertTrue(result.get(0).getTime().get().isEqual(cloudEvent1.getTime().get()));
-        assertEquals(result.get(1).getId(), cloudEvent2.getId());
-        assertEquals(result.get(0).getRoutingSlip(), cloudEvent2.getRoutingSlip());
     }
 
     /**
@@ -223,45 +207,6 @@ public class MessageListenerTests {
 
         // Don't forget to detach the consumer from kafka!
         MicoKafkaTestHelper.unsubscribeConsumer(consumer);
-    }
-
-    /**
-     * Tests if the need to filter out a message with "isTestMessage = true" and a "FilterOutBeforeTopic = message destination"
-     * is correctly recognized.
-     */
-    @Test
-    public void testFilterOutCheck() {
-        MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
-        String testFilterTopic = "TestFilterTopic";
-        cloudEventSimple.setFilterOutBeforeTopic(testFilterTopic);
-        cloudEventSimple.setIsTestMessage(true);
-
-        assertTrue("The message should be filtered out", messageListener.isTestMessageCompleted(cloudEventSimple, testFilterTopic));
-    }
-
-    /**
-     * Only "FilterOutBeforeTopic = message destination" is not enough to filter a message out. It needs to be a test message.
-     */
-    @Test
-    public void testNotFilterOutCheck() {
-        MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
-        String testFilterTopic = "TestFilterTopic";
-        cloudEventSimple.setFilterOutBeforeTopic(testFilterTopic);
-
-        assertFalse("The message not should be filtered out, because it is not a test message", messageListener.isTestMessageCompleted(cloudEventSimple, testFilterTopic));
-    }
-
-    /**
-     * Tests if a test message with "FilterOutBeforeTopic != message destination" will wrongly be filtered out.
-     */
-    @Test
-    public void testNotFilterOutCheckDifferentTopics() {
-        MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
-        String testFilterTopic = "TestFilterTopic";
-        cloudEventSimple.setFilterOutBeforeTopic(testFilterTopic);
-        cloudEventSimple.setIsTestMessage(true);
-
-        assertFalse("The message not should be filtered out, because it has not reached the filter out topic", messageListener.isTestMessageCompleted(cloudEventSimple, testFilterTopic + "Difference"));
     }
 
     /**
@@ -381,27 +326,6 @@ public class MessageListenerTests {
 
         // Don't forget to detach the consumer from kafka!
         MicoKafkaTestHelper.unsubscribeConsumer(consumer);
-    }
-
-    /**
-     * Tests if the createdFrom attribute is set correctly
-     */
-    @Test
-    public void testCreatedFrom() {
-        MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
-        final String originalMessageId = "OriginalMessageId";
-        messageListener.setMissingHeaderFields(cloudEventSimple, originalMessageId);
-        assertThat("If the id changes the createdFrom attribute has to be set", cloudEventSimple.getCreatedFrom().orElse(null), is(originalMessageId));
-    }
-
-    /**
-     * Tests if the createdFrom attribute is omitted if it is not necessary
-     */
-    @Test
-    public void testNotCreatedFrom() {
-        MicoCloudEventImpl<JsonNode> cloudEventSimple = CloudEventTestUtils.basicCloudEventWithRandomId();
-        messageListener.setMissingHeaderFields(cloudEventSimple, cloudEventSimple.getId());
-        assertThat("If the id stays the same the createdFrom attribute must be empty", cloudEventSimple.getCreatedFrom().orElse(null), is(nullValue()));
     }
 
 }
