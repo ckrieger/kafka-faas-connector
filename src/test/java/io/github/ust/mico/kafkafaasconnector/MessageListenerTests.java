@@ -21,11 +21,10 @@ package io.github.ust.mico.kafkafaasconnector;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.cloudevents.json.Json;
-import io.github.ust.mico.kafkafaasconnector.MessageProcessing.CloudEventManipulator;
-import io.github.ust.mico.kafkafaasconnector.MessageProcessing.FaasController;
-import io.github.ust.mico.kafkafaasconnector.MessageProcessing.KafkaMessageSender;
+import io.github.ust.mico.kafkafaasconnector.messageprocessing.CloudEventManipulator;
+import io.github.ust.mico.kafkafaasconnector.messageprocessing.FaasController;
+import io.github.ust.mico.kafkafaasconnector.messageprocessing.KafkaMessageSender;
 import io.github.ust.mico.kafkafaasconnector.configuration.KafkaConfig;
-import io.github.ust.mico.kafkafaasconnector.configuration.OpenFaaSConfig;
 import io.github.ust.mico.kafkafaasconnector.exception.MicoCloudEventException;
 import io.github.ust.mico.kafkafaasconnector.kafka.CloudEventDeserializer;
 import io.github.ust.mico.kafkafaasconnector.kafka.MicoCloudEventImpl;

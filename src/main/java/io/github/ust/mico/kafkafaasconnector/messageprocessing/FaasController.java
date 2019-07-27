@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package io.github.ust.mico.kafkafaasconnector.MessageProcessing;
+package io.github.ust.mico.kafkafaasconnector.messageprocessing;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -58,26 +58,26 @@ public class FaasController {
      */
     public List<MicoCloudEventImpl<JsonNode>> callFaasFunction(MicoCloudEventImpl<JsonNode> cloudEvent) throws MicoCloudEventException {
         if (!this.openFaaSConfig.isSkipFunctionCall()) {
-            try {
-                URL functionUrl = openFaaSConfig.getFunctionUrl();
-                log.debug("Start request to function '{}'", functionUrl.toString());
-                String cloudEventSerialized = Json.encode(cloudEventManipulator.updateRouteHistoryWithFunctionCall(cloudEvent, openFaaSConfig.getFunctionName()));
-                log.debug("Serialized cloud event: {}", cloudEventSerialized);
-                String result = restTemplate.postForObject(functionUrl.toString(), cloudEventSerialized, String.class);
-                log.debug("Faas call resulted in: '{}'", result);
-                return parseFunctionResult(result, cloudEvent);
-            } catch (MalformedURLException e) {
-                throw new MicoCloudEventException("Failed to call faas-function. Caused by: " + e.getMessage(), cloudEvent);
-            } catch (IllegalStateException e) {
-                log.error("Failed to serialize CloudEvent '{}'.", cloudEvent);
-                throw new MicoCloudEventException("Failed to serialize CloudEvent while calling the faas-function.", cloudEvent);
-            } catch (HttpStatusCodeException e) {
-                log.error("A client error occurred with http status:{} . These exceptions are triggered if the  FaaS function does not return 200 OK as the status code", e.getStatusCode(), e);
-                throw new MicoCloudEventException(e.toString(), cloudEvent);
-            }
-        } else {
             return Collections.singletonList(cloudEvent);
         }
+        try {
+            URL functionUrl = openFaaSConfig.getFunctionUrl();
+            log.debug("Start request to function '{}'", functionUrl.toString());
+            String cloudEventSerialized = Json.encode(cloudEventManipulator.updateRouteHistoryWithFunctionCall(cloudEvent, openFaaSConfig.getFunctionName()));
+            log.debug("Serialized cloud event: {}", cloudEventSerialized);
+            String result = restTemplate.postForObject(functionUrl.toString(), cloudEventSerialized, String.class);
+            log.debug("Faas call resulted in: '{}'", result);
+            return parseFunctionResult(result, cloudEvent);
+        } catch (MalformedURLException e) {
+            throw new MicoCloudEventException("Failed to call faas-function. Caused by: " + e.getMessage(), cloudEvent);
+        } catch (IllegalStateException e) {
+            log.error("Failed to serialize CloudEvent '{}'.", cloudEvent);
+            throw new MicoCloudEventException("Failed to serialize CloudEvent while calling the faas-function.", cloudEvent);
+        } catch (HttpStatusCodeException e) {
+            log.error("A client error occurred with http status:{} . These exceptions are triggered if the  FaaS function does not return 200 OK as the status code", e.getStatusCode(), e);
+            throw new MicoCloudEventException(e.toString(), cloudEvent);
+        }
+
     }
 
     /**

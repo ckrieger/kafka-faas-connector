@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package io.github.ust.mico.kafkafaasconnector.MessageProcessing;
+package io.github.ust.mico.kafkafaasconnector.messageprocessing;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.github.ust.mico.kafkafaasconnector.configuration.KafkaConfig;
@@ -91,7 +91,7 @@ public class CloudEventManipulator {
     public void setMissingHeaderFields(MicoCloudEventImpl<JsonNode> cloudEvent, String originalMessageId) {
 
         setMissingId(cloudEvent);
-        addMissingTime(cloudEvent);
+        setMissingTime(cloudEvent);
 
         if (!StringUtils.isEmpty(originalMessageId)) {
             setMissingCorrelationId(cloudEvent, originalMessageId);
@@ -148,7 +148,7 @@ public class CloudEventManipulator {
      * Adds the required field 'time' if it is missing.
      * @param cloudEvent
      */
-    private void addMissingTime(MicoCloudEventImpl<JsonNode> cloudEvent) {
+    private void setMissingTime(MicoCloudEventImpl<JsonNode> cloudEvent) {
         if (!cloudEvent.getTime().isPresent()) {
             cloudEvent.setTime(ZonedDateTime.now());
             log.debug("Added missing time '{}' to cloud event", cloudEvent.getTime().orElse(null));

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package io.github.ust.mico.kafkafaasconnector.MessageProcessing;
+package io.github.ust.mico.kafkafaasconnector.messageprocessing;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.github.ust.mico.kafkafaasconnector.configuration.KafkaConfig;
