@@ -46,7 +46,6 @@ public class MessageListener {
     @Autowired
     private FaasController faasController;
 
-
     /**
      * Entry point for incoming messages from kafka.
      *
@@ -63,7 +62,7 @@ public class MessageListener {
             handleExpiredMessage(cloudEvent);
 
             List<MicoCloudEventImpl<JsonNode>> events = faasController.callFaasFunction(cloudEvent);
-            events.forEach(event-> kafkaMessageSender.safeSendCloudEvent(event, originalMessageId));
+            events.forEach(event -> kafkaMessageSender.safeSendCloudEvent(event, originalMessageId));
 
         } catch (MicoCloudEventException e) {
             kafkaMessageSender.safeSendErrorMessage(e.getErrorEvent(), this.kafkaConfig.getInvalidMessageTopic(), originalMessageId);
@@ -72,6 +71,7 @@ public class MessageListener {
 
     /**
      * Logs expired messages and throw a {@code MicoCloudEventException} if the message is expired.
+     *
      * @param cloudEvent
      * @throws MicoCloudEventException
      */
@@ -84,13 +84,12 @@ public class MessageListener {
 
     /**
      * Checks if the message is expired
+     *
      * @param cloudEvent
      * @return
      */
     private boolean isMessageExpired(MicoCloudEventImpl<JsonNode> cloudEvent) {
         return cloudEvent.getExpiryDate().map(exp -> exp.compareTo(ZonedDateTime.now()) < 0).orElse(false);
     }
-
-
 
 }

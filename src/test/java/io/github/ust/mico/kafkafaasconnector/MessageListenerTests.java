@@ -21,6 +21,7 @@ package io.github.ust.mico.kafkafaasconnector;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.cloudevents.json.Json;
+import io.github.ust.mico.kafkafaasconnector.configuration.OpenFaaSConfig;
 import io.github.ust.mico.kafkafaasconnector.messageprocessing.CloudEventManipulator;
 import io.github.ust.mico.kafkafaasconnector.messageprocessing.FaasController;
 import io.github.ust.mico.kafkafaasconnector.messageprocessing.KafkaMessageSender;
@@ -85,17 +86,20 @@ public class MessageListenerTests {
 
     private MicoKafkaTestHelper micoKafkaTestHelper;
 
+    @Autowired
+    OpenFaaSConfig openFaaSConfig;
+
     @PostConstruct
     public void before() {
         this.micoKafkaTestHelper = new MicoKafkaTestHelper(embeddedKafka, kafkaConfig);
         template = this.micoKafkaTestHelper.getTemplate();
-        //We need to add them outside of the rule because the autowired kakfaConfig is not accessible from the static rule
-        //We can not use @BeforeClass which is only executed once because it has to be static and we do not have access to the autowired kakfaConfig
+        //We need to add them outside of the rule because the autowired kafkaConfig is not accessible from the static rule
+        //We can not use @BeforeClass which is only executed once because it has to be static and we do not have access to the autowired kafkaConfig
 
         Set<String> requiredTopics = this.micoKafkaTestHelper.getRequiredTopics();
         Set<String> alreadySetTopics = this.micoKafkaTestHelper.requestActuallySetTopics();
         requiredTopics.removeAll(alreadySetTopics);
-        requiredTopics.forEach(topic -> embeddedKafka.addTopics(topic));
+        requiredTopics.forEach(embeddedKafka::addTopics);
     }
 
     /**
@@ -309,7 +313,5 @@ public class MessageListenerTests {
         // Don't forget to detach the consumer from kafka!
         MicoKafkaTestHelper.unsubscribeConsumer(consumer);
     }
-
-
 
 }

@@ -81,7 +81,6 @@ public class CloudEventManipulator {
         return this.updateRouteHistory(cloudEvent, functionId, ROUTE_HISTORY_TYPE_FAAS_FUNCTION);
     }
 
-
     /**
      * Sets the time, the correlationId and the Id field of a CloudEvent message if missing
      *
@@ -106,6 +105,7 @@ public class CloudEventManipulator {
 
     /**
      * Sets the source field of an cloud event message to "kafka://{groupId}/{inputTopic}".
+     *
      * @param cloudEvent
      */
     private void setMissingSource(MicoCloudEventImpl<JsonNode> cloudEvent) {
@@ -121,6 +121,7 @@ public class CloudEventManipulator {
     /**
      * Adds the createdFrom field to the message if the messageId is different from the originalMessageId and
      * the createdFrom field is empty.
+     *
      * @param cloudEvent
      * @param originalMessageId
      */
@@ -135,6 +136,7 @@ public class CloudEventManipulator {
 
     /**
      * Sets the message correlationId to the originalMessageId if the correlationId is missing
+     *
      * @param cloudEvent
      * @param originalMessageId
      */
@@ -146,6 +148,7 @@ public class CloudEventManipulator {
 
     /**
      * Adds the required field 'time' if it is missing.
+     *
      * @param cloudEvent
      */
     private void setMissingTime(MicoCloudEventImpl<JsonNode> cloudEvent) {
@@ -157,6 +160,7 @@ public class CloudEventManipulator {
 
     /**
      * Sets a missing message id to a randomly generated one.
+     *
      * @param cloudEvent
      */
     private void setMissingId(MicoCloudEventImpl<JsonNode> cloudEvent) {
@@ -165,6 +169,5 @@ public class CloudEventManipulator {
             log.debug("Added missing id '{}' to cloud event", cloudEvent.getId());
         }
     }
-
 
 }
