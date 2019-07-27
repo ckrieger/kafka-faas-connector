@@ -19,6 +19,7 @@
 
 package io.github.ust.mico.kafkafaasconnector;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.cloudevents.json.Json;
 import io.github.ust.mico.kafkafaasconnector.configuration.OpenFaaSConfig;
@@ -55,6 +56,7 @@ import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -100,6 +102,18 @@ public class MessageListenerTests {
         Set<String> alreadySetTopics = this.micoKafkaTestHelper.requestActuallySetTopics();
         requiredTopics.removeAll(alreadySetTopics);
         requiredTopics.forEach(embeddedKafka::addTopics);
+    }
+
+    @Test
+    public void testCloudEventWithCustomHeaders() throws IllegalStateException {
+        MicoCloudEventImpl<JsonNode> cloudEvent = CloudEventTestUtils.basicCloudEvent("CloudEventHeaderTest");
+        cloudEvent.setExtension("customKey", Json.MAPPER.convertValue("customValue", JsonNode.class));
+        String encoded = Json.encode(cloudEvent);
+        MicoCloudEventImpl<JsonNode> parsed = Json.decodeValue(encoded, new TypeReference<MicoCloudEventImpl<JsonNode>>() { });
+        assertNotNull(parsed);
+        Map<String, JsonNode> extensions = parsed.getExtensionsForSerializer();
+        assertEquals(1, extensions.size());
+        assertTrue(extensions.containsKey("customKey"));
     }
 
     /**
