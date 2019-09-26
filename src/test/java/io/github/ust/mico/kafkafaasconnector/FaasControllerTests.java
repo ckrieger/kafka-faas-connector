@@ -20,25 +20,37 @@ package io.github.ust.mico.kafkafaasconnector;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.cloudevents.json.Json;
+import io.github.ust.mico.kafkafaasconnector.configuration.OpenFaaSConfig;
 import io.github.ust.mico.kafkafaasconnector.exception.MicoCloudEventException;
 import io.github.ust.mico.kafkafaasconnector.kafka.MicoCloudEventImpl;
 import io.github.ust.mico.kafkafaasconnector.messageprocessing.FaasController;
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.contrib.java.lang.system.EnvironmentVariables;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
+import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpMethod;
 import org.springframework.kafka.test.EmbeddedKafkaBroker;
 import org.springframework.kafka.test.rule.EmbeddedKafkaRule;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
 
 import static org.junit.Assert.*;
 import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Matchers.eq;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
@@ -58,6 +70,7 @@ public class FaasControllerTests {
 
     @Autowired
     FaasController faasController;
+
 
     @Test
     public void parseEmptyFunctionResult() throws MicoCloudEventException {
