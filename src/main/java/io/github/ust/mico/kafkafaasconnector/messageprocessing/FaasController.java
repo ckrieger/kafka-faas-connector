@@ -57,7 +57,8 @@ public class FaasController {
      * @return the result of the function call (in serialized form)
      */
     public List<MicoCloudEventImpl<JsonNode>> callFaasFunction(MicoCloudEventImpl<JsonNode> cloudEvent) throws MicoCloudEventException {
-        if (this.openFaaSConfig.isSkipFunctionCall()) {
+        if (this.openFaaSConfig.isSkipFunctionCall() || this.openFaaSConfig.getFunctionName() == null || this.openFaaSConfig.getFunctionName().isEmpty()) {
+            log.debug("Skip faas function call. Function name '{}'",this.openFaaSConfig.getFunctionName());
             return Collections.singletonList(cloudEvent);
         }
         URL functionUrl = null;
