@@ -104,11 +104,12 @@ public class FaasControllerTests {
     @Test
     public void callFaaSFunction() throws MicoCloudEventException, IOException {
         MicoCloudEventImpl<JsonNode> cloudEvent1 = CloudEventTestUtils.basicCloudEvent("CloudEvent1");
-        String json = "{ \"timestamp\" : 11, \"customerRating\" : 9, \"customerName\" : \"Christoph\"}";
+        String json = "{ \"timestamp\" : 11, \"customerRating\" : 9, \"customerName\" : \"Chris\"}";
         ObjectMapper mapper = new ObjectMapper();
         //mapper.configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true);
         JsonNode actualObj = mapper.readTree(json);
         cloudEvent1.setData(actualObj);
         this.faasController.callFaasFunction(cloudEvent1);
     }
+
 }

@@ -28,4 +28,4 @@ services:
       - kafka
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      OPENFAAS_GATEWAY: http://host.docker.internal:31112
+      OPENFAAS_GATEWAY: http://host.docker.internal:8080

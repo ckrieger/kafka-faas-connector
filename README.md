@@ -72,6 +72,11 @@ docker exec -it kafka /bin/bash
 /opt/kafka/bin/kafka-console-producer.sh --broker-list localhost:9092 --topic transform-request
 ```
 
+A cloudEvent for testing:
+```
+{"id": 1, "source": "someSource", "data": { "timestamp": 1111, "customerRating": 9, "customerName": "Chris"}}
+```
+
 Consume topic 'transform-result' locally:
 ```bash
 docker exec -it kafka /bin/bash
