@@ -62,6 +62,8 @@ public class OpenFaaSConfig {
     @NotNull
     private boolean skipFunctionCall = false;
 
+    private String patternConfig;
+
     /**
      * Get the url for the configured function using gateway and function.
      *

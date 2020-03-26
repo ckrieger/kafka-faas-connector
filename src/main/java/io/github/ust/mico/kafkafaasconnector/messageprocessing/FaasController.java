@@ -66,8 +66,9 @@ public class FaasController {
             functionUrl = openFaaSConfig.getFunctionUrl();
             log.debug("Start request to function '{}'", functionUrl.toString());
             String cloudEventSerialized = Json.encode(cloudEventManipulator.updateRouteHistoryWithFunctionCall(cloudEvent, openFaaSConfig.getFunctionName()));
-            log.debug("Serialized cloud event: {}", cloudEventSerialized);
-            String result = restTemplate.postForObject(functionUrl.toString(), cloudEventSerialized, String.class);
+            String functionInput = "{\"cloudEvent\":" + cloudEventSerialized + ", \"patternConfig\":" + openFaaSConfig.getPatternConfig() + "}";
+            log.debug("Serialized function input: {}", functionInput);
+            String result = restTemplate.postForObject(functionUrl.toString(), functionInput, String.class);
             log.debug("Faas call resulted in: '{}'", result);
             return parseFunctionResult(result, cloudEvent);
         } catch (MalformedURLException e) {

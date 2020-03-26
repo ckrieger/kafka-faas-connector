@@ -18,7 +18,9 @@
  */
 package io.github.ust.mico.kafkafaasconnector;
 
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.cloudevents.json.Json;
 import io.github.ust.mico.kafkafaasconnector.configuration.OpenFaaSConfig;
 import io.github.ust.mico.kafkafaasconnector.exception.MicoCloudEventException;
@@ -44,6 +46,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
+import java.io.IOException;
 import java.util.ArrayList;
 
 import static org.junit.Assert.*;
@@ -96,5 +99,16 @@ public class FaasControllerTests {
         assertTrue(result.get(0).getTime().get().isEqual(cloudEvent1.getTime().get()));
         assertEquals(result.get(1).getId(), cloudEvent2.getId());
         assertEquals(result.get(0).getRoutingSlip(), cloudEvent2.getRoutingSlip());
+    }
+
+    @Test
+    public void callFaaSFunction() throws MicoCloudEventException, IOException {
+        MicoCloudEventImpl<JsonNode> cloudEvent1 = CloudEventTestUtils.basicCloudEvent("CloudEvent1");
+        String json = "{ \"timestamp\" : 11, \"customerRating\" : 9, \"customerName\" : \"Christoph\"}";
+        ObjectMapper mapper = new ObjectMapper();
+        //mapper.configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true);
+        JsonNode actualObj = mapper.readTree(json);
+        cloudEvent1.setData(actualObj);
+        this.faasController.callFaasFunction(cloudEvent1);
     }
 }
